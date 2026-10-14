@@ -1,0 +1,16 @@
+# Your references are yours (and their authors'), not part of this project.
+/library/
+
+# Dependencies and build output
+node_modules/
+.nuxt/
+.output/
+dist/
+
+# Local tooling and working notes
+.claude/
+/docs/briefs/
+.DS_Store
+*.log
+.env
+.env.*

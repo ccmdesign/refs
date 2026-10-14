@@ -1,0 +1,1093 @@
+/* Tokens. Two inks, one rule colour, one spacing scale (4 8 12 16 24 32 48). */
+:root {
+  --fg: #000;
+  --bg: #fff;
+  --muted: #6b6b6b;
+  --hover: #f5f5f5;
+  --rule: #e6e6e6;
+  --backdrop: rgba(0, 0, 0, 0.4);
+  --sidebar: 232px;
+  /* Layered elevation; geometry from the BFNA medium shadow, in neutral ink. */
+  --shadow-color: 0 0% 0%;
+  --shadow-raised:
+    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.2),
+    0.8px 1.6px 2px -0.8px hsl(var(--shadow-color) / 0.2),
+    2.1px 4.1px 5.2px -1.7px hsl(var(--shadow-color) / 0.2),
+    5px 10px 12.6px -2.5px hsl(var(--shadow-color) / 0.2);
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  --fg: #fff;
+  --bg: #000;
+  --muted: #9a9a9a;
+  --hover: #1a1a1a;
+  --rule: #2b2b2b;
+  --backdrop: rgba(0, 0, 0, 0.7);
+  /* On black a shadow cannot show; the selected border carries the state. */
+  --shadow-color: 0 0% 0%;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#__nuxt {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: "Switzer", system-ui, sans-serif;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--fg);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+h1,
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Controls */
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: 0;
+  padding: 4px 8px;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+input:not([type="checkbox"]):hover,
+textarea:hover,
+select:hover {
+  border-color: var(--muted);
+}
+
+input:not([type="checkbox"]):focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  border-color: var(--fg);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--fg);
+  margin: 0;
+}
+
+button {
+  cursor: pointer;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+
+button:hover {
+  background: var(--hover);
+}
+
+button:disabled,
+select:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+button.selected,
+a.selected {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+/* A text-only action that should not compete with fields or primary buttons. */
+button.quiet {
+  border-color: transparent;
+  padding: 2px 6px;
+  color: var(--muted);
+}
+
+button.quiet:hover {
+  color: var(--fg);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.form-error {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Shell */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar) 1px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.rule-v {
+  background: var(--rule);
+  width: 1px;
+}
+
+/* Sidebar: stays put while the grid scrolls. */
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* The app's name: aligned with the nav text, on the board title's baseline. */
+.app-name {
+  align-self: flex-start;
+  padding: 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 35px;
+  letter-spacing: -0.01em;
+}
+
+.sidebar-nav,
+.board-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-nav a,
+.board-tree a {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 8px;
+}
+
+.sidebar-nav a:hover,
+.board-tree a:hover {
+  background: var(--hover);
+}
+
+/* The current item keeps its inverted state under the pointer. */
+.sidebar-nav a.selected,
+.board-tree a.selected,
+.sidebar-nav a.selected:hover,
+.board-tree a.selected:hover,
+button.selected:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.sidebar .count {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.sidebar a.selected .count {
+  color: inherit;
+}
+
+.board-tree .depth {
+  padding-left: 12px;
+}
+
+.board-tree a.dragging {
+  opacity: 0.4;
+}
+
+.board-tree a.drop-target,
+.drop-root.drop-target {
+  outline: 1px solid var(--fg);
+  outline-offset: -1px;
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.drop-root {
+  padding: 8px;
+  border: 1px dashed var(--muted);
+  color: var(--muted);
+}
+
+/* Board actions read as a quiet list, not as four competing buttons. */
+.sidebar-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.sidebar-actions > button {
+  border-color: transparent;
+  text-align: left;
+  padding: 4px 8px;
+  color: var(--muted);
+}
+
+.sidebar-actions > button:hover {
+  color: var(--fg);
+}
+
+.sidebar-actions label,
+.sidebar-actions p {
+  padding: 0 8px;
+  margin-bottom: 4px;
+}
+
+.sidebar-actions input {
+  width: 100%;
+  margin-bottom: 4px;
+}
+
+.sidebar-actions .row {
+  display: flex;
+  gap: 4px;
+}
+
+.sidebar-actions .row button {
+  flex: 1;
+}
+
+/* Licence line, pinned to the foot of the sidebar. */
+.app-footer {
+  margin-top: auto;
+  padding: 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.app-footer a {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.app-footer a:hover {
+  color: var(--fg);
+}
+
+/* Main column */
+
+.main {
+  padding: 24px 32px 96px;
+  min-width: 0;
+}
+
+.header-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px 32px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--fg);
+}
+
+/* The one large element on the page: which board this is. */
+.view-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.title-parent,
+.title-sep {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.title-parent:hover {
+  color: var(--fg);
+}
+
+.title-count {
+  margin-left: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.header-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin-left: auto;
+}
+
+.header-controls label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.columns-switch {
+  display: inline-flex;
+  align-items: center;
+}
+
+.columns-switch span {
+  margin-right: 8px;
+  color: var(--muted);
+}
+
+/* Joined segments share their hairlines. */
+.columns-switch button {
+  min-width: 28px;
+  margin-left: -1px;
+}
+
+.columns-switch button.selected {
+  position: relative;
+}
+
+/* Brief and tags stay folded away until asked for; the grid comes first. */
+.board-details {
+  border-bottom: 1px solid var(--rule);
+}
+
+.board-details summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 8px 0;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+}
+
+.board-details summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A drawn disclosure mark: plus when closed, minus when open. */
+.board-details summary::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  align-self: center;
+  background:
+    linear-gradient(var(--fg), var(--fg)) center / 9px 1px no-repeat,
+    linear-gradient(var(--fg), var(--fg)) center / 1px 9px no-repeat;
+}
+
+.board-details[open] summary::before {
+  background: linear-gradient(var(--fg), var(--fg)) center / 9px 1px no-repeat;
+}
+
+.board-details summary:hover {
+  color: var(--muted);
+}
+
+.board-details[open] {
+  padding-bottom: 16px;
+}
+
+/* The brief is the board's body copy: read first, edited in place. */
+.brief-area textarea {
+  display: block;
+  width: 100%;
+  max-width: 72ch;
+  min-height: 0;
+  resize: none;
+  overflow: hidden;
+  border: none;
+  padding: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.brief-area textarea:focus-visible {
+  outline: none;
+}
+
+/* Tags are a filter, not content: plain words, no boxes. */
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 4px;
+  margin: 16px -6px 0;
+}
+
+.tag-row button {
+  border-color: transparent;
+  padding: 1px 6px;
+  color: var(--muted);
+}
+
+.tag-row button:hover {
+  color: var(--fg);
+}
+
+.tag-row button.on,
+.tag-row button.on:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+.tag-row .tag-more {
+  color: var(--fg);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* Grid */
+
+.masonry {
+  column-gap: 16px;
+  margin-top: 24px;
+}
+
+.tile {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: 16px;
+  cursor: pointer;
+  border: 1px solid var(--rule);
+  background: var(--bg);
+  transition: border-color 120ms ease-out, box-shadow 200ms ease-out, transform 200ms ease-out;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.tile:hover {
+  border-color: var(--muted);
+}
+
+/* Selected cards lift off the page. */
+.tile.selected {
+  border-color: var(--fg);
+  box-shadow: var(--shadow-raised);
+  transform: translateY(-2px);
+}
+
+.tile-wrap {
+  position: relative;
+}
+
+.tile-wrap:not(.tile-link) {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.tile img {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+}
+
+.tile-via,
+.tile-note {
+  padding: 6px 8px;
+  border-top: 1px solid var(--rule);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tile-via {
+  font-size: 11px;
+}
+
+.tile-note {
+  color: var(--muted);
+}
+
+.tile-via + .tile-note {
+  border-top: none;
+  padding-top: 0;
+}
+
+.tile-link {
+  padding: 16px;
+  min-height: 96px;
+}
+
+.tile-link .host {
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.tile-link .url {
+  color: var(--muted);
+  word-break: break-all;
+}
+
+.tile-key {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 4px 5px;
+  background: var(--fg);
+  color: var(--bg);
+}
+
+/* Selection box: empty square, solid when selected. */
+.tile-check {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border-color: var(--fg);
+  display: none;
+}
+
+.tile:hover .tile-check,
+.tile.selecting .tile-check,
+.tile-check:focus-visible {
+  display: block;
+}
+
+.tile.selected .tile-check {
+  background: var(--fg);
+  box-shadow: inset 0 0 0 4px var(--bg);
+}
+
+.empty {
+  color: var(--muted);
+  padding: 96px 0;
+  font-size: 15px;
+}
+
+/* Floating status and bulk actions */
+
+.status-line,
+.bulk-bar {
+  position: fixed;
+  bottom: 24px;
+  left: calc(50% + var(--sidebar) / 2);
+  transform: translateX(-50%);
+  background: var(--bg);
+  border: 1px solid var(--fg);
+}
+
+.status-line {
+  padding: 8px 12px;
+  z-index: 40;
+}
+
+.bulk-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  max-width: calc(100vw - var(--sidebar) - 48px);
+  z-index: 45;
+}
+
+.bulk-bar > span:first-child {
+  padding: 0 8px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.bulk-bar button,
+.bulk-bar select {
+  white-space: nowrap;
+}
+
+.bulk-bar input {
+  width: 260px;
+}
+
+.drop-overlay {
+  position: fixed;
+  inset: 12px;
+  border: 2px solid var(--fg);
+  pointer-events: none;
+  z-index: 50;
+  display: none;
+}
+
+.drop-overlay.active {
+  display: block;
+}
+
+/* Ref popover */
+
+.ref-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--backdrop);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The frame is the image: same proportions, as large as the window allows. */
+.ref-overlay {
+  --max-w: 92vw;
+  --max-h: 88dvh;
+  position: relative;
+  width: min(var(--max-w), calc(var(--max-h) * var(--ratio)));
+  aspect-ratio: var(--ratio);
+  max-height: var(--max-h);
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.ref-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ref-link {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 32px;
+  font-size: 15px;
+  word-break: break-all;
+}
+
+/* The details sit over the right edge of the image and appear on hover:
+   a fade to black, with everything inside in white. */
+.ref-drawer {
+  --fg: #fff;
+  --bg: rgb(0 0 0 / 0.3);
+  --muted: rgb(255 255 255 / 0.62);
+  --rule: rgb(255 255 255 / 0.24);
+  --hover: rgb(255 255 255 / 0.12);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(460px, 100%);
+  /* On a narrow, tall image the drawer covers it all, with a shorter fade. */
+  padding-left: min(96px, 12%);
+  color: var(--fg);
+  color-scheme: dark;
+  background: linear-gradient(
+    to right,
+    rgb(0 0 0 / 0) 0,
+    rgb(0 0 0 / 0.72) 96px,
+    rgb(0 0 0 / 0.9) 100%
+  );
+  opacity: 0;
+  transform: translateX(24px);
+  pointer-events: none;
+  transition:
+    opacity 180ms ease-out,
+    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Stays open while you type in it, even if the pointer wanders off. */
+.ref-overlay:hover .ref-drawer,
+.ref-drawer:focus-within {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+@media (hover: none) {
+  .ref-drawer {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
+.ref-drawer .agent-button:hover,
+.ref-drawer button:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+
+.ref-drawer select option {
+  background: #111;
+  color: #fff;
+}
+
+.ref-panel {
+  height: 100%;
+  padding: 24px 24px 24px 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ref-panel label {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.ref-panel .label-inline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  letter-spacing: 0;
+  color: var(--fg);
+  margin-bottom: 0;
+  cursor: pointer;
+}
+
+.ref-panel input:not([type="checkbox"]),
+.ref-panel textarea {
+  width: 100%;
+}
+
+.ref-panel textarea {
+  display: block;
+  min-height: 56px;
+  resize: vertical;
+}
+
+/* The ref's name leads the panel; it is still an editable field. */
+.ref-panel .title-input {
+  border-color: transparent;
+  border-bottom-color: var(--rule);
+  padding: 0 0 8px;
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  text-overflow: ellipsis;
+}
+
+.ref-panel .tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-bottom: 4px;
+}
+
+/* Quiet actions align with the text above them, not with their own padding. */
+.ref-panel .tag-list + button.quiet {
+  margin-left: -6px;
+}
+
+.ref-panel .on-board button.quiet {
+  margin-right: -6px;
+}
+
+.ref-panel .on-board {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ref-panel .on-board + .on-board {
+  margin-top: 2px;
+}
+
+.ref-panel .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+
+.ref-panel .actions select,
+.ref-panel .actions input {
+  flex: 1;
+  min-width: 0;
+}
+
+.ref-panel .saved {
+  min-height: 1.45em;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* Narrow windows: the sidebar stacks above the grid. */
+@media (max-width: 760px) {
+  :root {
+    --sidebar: 0px;
+  }
+
+  .app-shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .app-shell > .rule-v {
+    display: none;
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    padding: 16px;
+    gap: 16px;
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .main {
+    padding: 16px 16px 96px;
+  }
+
+  .view-title {
+    font-size: 24px;
+  }
+
+  .header-controls {
+    margin-left: 0;
+  }
+
+  .masonry {
+    column-count: 2 !important;
+    column-gap: 8px;
+  }
+
+  .tile {
+    margin-bottom: 8px;
+  }
+
+  .bulk-bar {
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    transform: none;
+    max-width: none;
+    flex-wrap: wrap;
+  }
+
+  .ref-overlay {
+    --max-w: 100vw;
+    --max-h: 100dvh;
+  }
+
+  .ref-drawer {
+    width: 100%;
+    padding-left: 48px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+.agent-button {
+  min-width: 64px;
+  white-space: nowrap;
+}
+
+.ref-panel .panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ref-panel .panel-head .title-input {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Drag a ref onto a board: the page gives way to a grid of every board. */
+body.ref-dragging,
+body.ref-dragging * {
+  cursor: grabbing !important;
+}
+
+.drop-grid {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: var(--bg);
+  padding: 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  animation: drop-grid-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
+  transform-origin: 50% 40%;
+}
+
+@keyframes drop-grid-in {
+  from {
+    opacity: 0;
+    transform: perspective(1200px) rotateX(8deg) scale(0.98);
+  }
+}
+
+.drop-grid-heading {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--fg);
+}
+
+.drop-grid-cells {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.drop-cell {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  min-height: 120px;
+  padding: 16px;
+  border: 1px solid var(--rule);
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.drop-cell-parent {
+  color: var(--muted);
+}
+
+.drop-cell-name {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+}
+
+.drop-cell-count {
+  margin-top: 8px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.drop-cell.over {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.drop-cell.over .drop-cell-parent,
+.drop-cell.over .drop-cell-count {
+  color: inherit;
+}
+
+.drop-cell.current {
+  border-style: dashed;
+  color: var(--muted);
+}
+
+.drop-grid-hint {
+  color: var(--muted);
+  margin-top: auto;
+}
+
+/* What is in the hand: one card, or a fanned stack with a count. */
+.drag-stack {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100;
+  pointer-events: none;
+  width: 112px;
+}
+
+.drag-stack img,
+.drag-stack-blank {
+  display: block;
+  width: 112px;
+  height: 84px;
+  object-fit: cover;
+  background: var(--bg);
+  border: 1px solid var(--fg);
+  box-shadow: var(--shadow-raised);
+}
+
+.drag-stack.group img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform: translate(calc(var(--i) * 6px), calc(var(--i) * -6px)) rotate(calc(var(--i) * 3deg - 3deg));
+  animation: stack-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--i) * 40ms + 120ms);
+}
+
+.drag-stack.group img:first-child {
+  position: relative;
+}
+
+@keyframes stack-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+.drag-stack-count {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  z-index: 1;
+  min-width: 24px;
+  padding: 3px 7px;
+  background: var(--fg);
+  color: var(--bg);
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
