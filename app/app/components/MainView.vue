@@ -379,6 +379,7 @@ const overlayItem = computed(() =>
         v-if="boards"
         :tree="boards.tree"
         :drag="refDrag.state"
+        :bind-ghost="refDrag.bindGhost"
         :current-board="kind === 'board' ? boardPath : undefined"
       />
 

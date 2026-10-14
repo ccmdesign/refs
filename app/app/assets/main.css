@@ -947,10 +947,17 @@ button.selected:hover {
   min-width: 0;
 }
 
-/* Drag a ref onto a board: the page gives way to a grid of every board. */
+/* Drag a ref onto a board: the page gives way to a grid of every board,
+   one row per top-level board, its sub-boards as columns. */
 body.ref-dragging,
 body.ref-dragging * {
   cursor: grabbing !important;
+}
+
+/* Holding a card: it sinks a little while the hold is counting. */
+.tile.pressing {
+  transform: scale(0.97);
+  transition: transform 220ms cubic-bezier(0.32, 0, 0.67, 0);
 }
 
 .drop-grid {
@@ -963,14 +970,12 @@ body.ref-dragging * {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  animation: drop-grid-in 220ms cubic-bezier(0.16, 1, 0.3, 1);
-  transform-origin: 50% 40%;
+  animation: drop-grid-in 140ms ease-out;
 }
 
 @keyframes drop-grid-in {
   from {
     opacity: 0;
-    transform: perspective(1200px) rotateX(8deg) scale(0.98);
   }
 }
 
@@ -983,20 +988,59 @@ body.ref-dragging * {
   border-bottom: 1px solid var(--fg);
 }
 
-.drop-grid-cells {
+.drop-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.drop-row {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  grid-template-columns: 240px minmax(0, 1fr);
   gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+  animation: drop-row-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation-delay: calc(var(--row) * 24ms);
+}
+
+@keyframes drop-row-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.drop-row-subs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.drop-row-empty {
+  align-self: center;
+  color: var(--muted);
 }
 
 .drop-cell {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  min-height: 120px;
-  padding: 16px;
+  min-height: 88px;
+  padding: 12px 14px;
   border: 1px solid var(--rule);
-  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+  transition:
+    background-color 100ms ease-out,
+    color 100ms ease-out,
+    border-color 100ms ease-out,
+    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drop-cell-board {
+  border-color: var(--fg);
+}
+
+.drop-cell-board .drop-cell-name {
+  font-size: 20px;
 }
 
 .drop-cell-parent {
@@ -1004,14 +1048,14 @@ body.ref-dragging * {
 }
 
 .drop-cell-name {
-  font-size: 20px;
+  font-size: 16px;
   font-weight: 600;
   letter-spacing: -0.01em;
   line-height: 1.15;
 }
 
 .drop-cell-count {
-  margin-top: 8px;
+  margin-top: 6px;
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1020,6 +1064,17 @@ body.ref-dragging * {
   background: var(--fg);
   color: var(--bg);
   border-color: var(--fg);
+  transform: scale(1.02);
+}
+
+.drop-cell.landing {
+  animation: drop-cell-land 320ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes drop-cell-land {
+  40% {
+    transform: scale(1.05);
+  }
 }
 
 .drop-cell.over .drop-cell-parent,
@@ -1029,6 +1084,7 @@ body.ref-dragging * {
 
 .drop-cell.current {
   border-style: dashed;
+  border-color: var(--rule);
   color: var(--muted);
 }
 
@@ -1040,11 +1096,12 @@ body.ref-dragging * {
 /* What is in the hand: one card, or a fanned stack with a count. */
 .drag-stack {
   position: fixed;
-  top: 0;
-  left: 0;
+  top: -42px;
+  left: -56px;
   z-index: 100;
   pointer-events: none;
   width: 112px;
+  will-change: transform;
 }
 
 .drag-stack img,
