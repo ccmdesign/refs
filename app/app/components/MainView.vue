@@ -262,6 +262,59 @@ watch([kindRef, boardRef], clearSelection);
 const overlayItem = computed(() =>
   openIndex.value !== null ? refsData.value?.refs[openIndex.value] : null,
 );
+
+const titleNameEl = ref<HTMLElement | null>(null);
+let skipTitleCommit = false;
+
+// The editable name is filled by hand, not by interpolation, so a re-render
+// never moves the caret. Runs after render, when a new board's element exists.
+watch(
+  [title, titleNameEl],
+  () => {
+    const el = titleNameEl.value;
+    if (el && document.activeElement !== el) {
+      el.textContent = title.value;
+    }
+  },
+  { immediate: true, flush: "post" },
+);
+
+function onTitleEsc() {
+  skipTitleCommit = true;
+  const el = titleNameEl.value;
+  if (el) el.textContent = title.value;
+  el?.blur();
+}
+
+async function commitTitle() {
+  if (skipTitleCommit) {
+    skipTitleCommit = false;
+    return;
+  }
+  const el = titleNameEl.value;
+  if (!el || props.kind !== "board" || !props.boardPath) return;
+  const newName = (el.textContent ?? "").trim();
+  const oldName = props.boardPath.split("/").pop() ?? "";
+  if (!newName || newName === oldName || newName.includes("/") || newName.includes("\\")) {
+    if (newName && (newName.includes("/") || newName.includes("\\"))) {
+      flash("Board names can't contain /");
+    }
+    el.textContent = oldName;
+    return;
+  }
+  const parent = props.boardPath.includes("/")
+    ? props.boardPath.slice(0, props.boardPath.lastIndexOf("/"))
+    : "";
+  const to = parent ? `${parent}/${newName}` : newName;
+  try {
+    await $fetch("/api/boards", { method: "PATCH", body: { from: props.boardPath, to } });
+    await refreshBoards();
+    await navigateTo(`/b/${to}`);
+  } catch (err: any) {
+    el.textContent = oldName;
+    flash(err?.data?.statusMessage || "Could not rename");
+  }
+}
 </script>
 
 <template>
@@ -284,7 +337,21 @@ const overlayItem = computed(() =>
             <NuxtLink :to="`/b/${p.path}`" class="title-parent">{{ p.name }}</NuxtLink>
             <span class="title-sep" aria-hidden="true">/</span>
           </template>
-          <span>{{ title }}</span>
+          <span
+            v-if="kind === 'board'"
+            ref="titleNameEl"
+            :key="boardPath"
+            class="title-name"
+            contenteditable="plaintext-only"
+            spellcheck="false"
+            role="textbox"
+            aria-label="Board name"
+            title="Click to rename"
+            @keydown.enter.prevent="titleNameEl?.blur()"
+            @keydown.esc.prevent="onTitleEsc"
+            @blur="commitTitle"
+          />
+          <span v-else>{{ title }}</span>
           <span class="title-count">{{ refsData?.count ?? 0 }}</span>
         </h1>
         <div class="header-controls">

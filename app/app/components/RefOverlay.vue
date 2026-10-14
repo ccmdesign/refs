@@ -212,17 +212,19 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
         </button>
       </div>
       <div>
-        <label>Source</label>
-        <input v-model="source" type="text" @blur="patchRef" />
-        <a v-if="source" :href="source" target="_blank" rel="noopener">Open</a>
+        <div class="field-head">
+          <label>Source</label>
+          <a v-if="source" :href="source" target="_blank" rel="noopener">Open ↗</a>
+        </div>
+        <input v-model="source" type="text" placeholder="Where it came from" @blur="patchRef" />
       </div>
       <div>
         <label>Note</label>
-        <textarea v-model="note" @blur="patchRef" />
+        <textarea v-model="note" placeholder="What is true of this ref anywhere" @blur="patchRef" />
       </div>
       <div v-if="boardPath">
         <label>Board note</label>
-        <textarea v-model="boardNote" @blur="patchBoardRef" />
+        <textarea v-model="boardNote" placeholder="What to take from it for this board" @blur="patchBoardRef" />
       </div>
       <div v-if="boardPath">
         <label class="label-inline">
@@ -262,13 +264,13 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
           @keydown.enter="createAndAdd"
           @keydown.esc.stop="namingBoard = false"
         />
-        <button type="button" @click="createAndAdd">Create and add</button>
-        <button type="button" @click="namingBoard = false">Back</button>
+        <button type="button" class="quiet" @click="createAndAdd">Create and add</button>
+        <button type="button" class="quiet" @click="namingBoard = false">Back</button>
       </div>
       <div v-else-if="confirmingDelete" class="actions">
         <span>Move this ref to trash?</span>
-        <button type="button" @click="deleteRef">Delete</button>
-        <button type="button" @click="confirmingDelete = false">Cancel</button>
+        <button type="button" class="quiet" @click="deleteRef">Delete</button>
+        <button type="button" class="quiet" @click="confirmingDelete = false">Cancel</button>
       </div>
       <div v-else class="actions">
         <select @change="onPickBoard">
@@ -276,8 +278,8 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
           <option v-for="p in otherBoards" :key="p" :value="p">{{ p }}</option>
           <option :value="NEW_BOARD">New board…</option>
         </select>
-        <button type="button" @click="confirmingDelete = true">Delete</button>
-        <button type="button" @click="emit('close')">Close</button>
+        <button type="button" class="quiet" @click="confirmingDelete = true">Delete</button>
+        <button type="button" class="quiet" @click="emit('close')">Close</button>
       </div>
       <p v-if="panelError" class="form-error">{{ panelError }}</p>
       <p class="saved" :class="{ on: saved }" aria-live="polite">{{ saved ? "Saved" : "" }}</p>

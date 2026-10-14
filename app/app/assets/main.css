@@ -233,16 +233,33 @@ button.selected:hover {
   padding-left: 12px;
 }
 
-.board-tree a.dragging {
-  opacity: 0.4;
+input.new-board {
+  width: 100%;
+  border: none;
+  background: transparent;
+  padding: 4px 8px;
+  outline: none;
 }
 
-.board-tree a.drop-target,
-.drop-root.drop-target {
-  outline: 1px solid var(--fg);
-  outline-offset: -1px;
-  background: var(--hover);
+input.new-board:hover::placeholder {
   color: var(--fg);
+}
+
+.new-board-error {
+  padding: 0 8px;
+}
+
+.title-name {
+  cursor: text;
+  outline: none;
+}
+
+.title-name:hover {
+  box-shadow: inset 0 -1px var(--rule);
+}
+
+.title-name:focus {
+  box-shadow: inset 0 -1px var(--fg);
 }
 
 .drop-root {
@@ -251,42 +268,109 @@ button.selected:hover {
   color: var(--muted);
 }
 
-/* Board actions read as a quiet list, not as four competing buttons. */
-.sidebar-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
-
-.sidebar-actions > button {
-  border-color: transparent;
-  text-align: left;
-  padding: 4px 8px;
-  color: var(--muted);
-}
-
-.sidebar-actions > button:hover {
+.drop-root.drop-target {
+  outline: 1px solid var(--fg);
+  outline-offset: -1px;
+  background: var(--hover);
   color: var(--fg);
 }
 
-.sidebar-actions label,
-.sidebar-actions p {
-  padding: 0 8px;
-  margin-bottom: 4px;
+.boards-page .drop-row {
+  animation: none;
 }
 
-.sidebar-actions input {
+/* The board's own cell keeps its size instead of stretching to a tall row. */
+.boards-page .drop-row > .drop-cell {
+  align-self: start;
+}
+
+/* Pinned to the viewport, so it is reachable when scrolled and never shifts
+   the cells under the pointer when it appears. */
+.boards-page .boards-drop-top {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 50;
+  transform: translateX(-50%);
+  padding: 16px 32px;
+  background: var(--bg);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.boards-page .boards-drag-error {
+  margin-bottom: 12px;
+}
+
+.boards-page a.drop-cell {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Hover is a 5% tint of the ink and nothing else. */
+.boards-page .drop-cell:hover:not(.over) {
+  background: rgb(0 0 0 / 0.05);
+}
+
+:root[data-theme="dark"] .boards-page .drop-cell:hover:not(.over) {
+  background: rgb(255 255 255 / 0.05);
+}
+
+.boards-page .drop-cell.dragging {
+  opacity: 0.4;
+}
+
+.boards-page .drop-cell {
+  position: relative;
+}
+
+.boards-page .drop-cell-add {
+  border-style: dashed;
+  justify-content: center;
+}
+
+.boards-page .board-inline-input,
+.boards-page .board-inline-input:focus-visible {
   width: 100%;
-  margin-bottom: 4px;
+  border: none;
+  background: transparent;
+  padding: 0;
+  outline: none;
 }
 
-.sidebar-actions .row {
+.boards-page .cell-delete {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+  display: none;
+}
+
+.boards-page .cell-delete,
+.boards-page .cell-delete:hover,
+.boards-page .cell-confirm-actions button:hover {
+  background: transparent;
+}
+
+.boards-page .drop-cell:hover .cell-delete,
+.boards-page .drop-cell:focus-within .cell-delete {
+  display: block;
+}
+
+@media (hover: none) {
+  .boards-page .cell-delete {
+    display: block;
+  }
+}
+
+.boards-page .drop-cell-confirm {
+  justify-content: flex-start;
+  gap: 8px;
+}
+
+.boards-page .cell-confirm-actions {
   display: flex;
-  gap: 4px;
-}
-
-.sidebar-actions .row button {
-  flex: 1;
+  gap: 8px;
 }
 
 /* Licence line, pinned to the foot of the sidebar. */
@@ -704,51 +788,81 @@ button.selected:hover {
   word-break: break-all;
 }
 
-/* The details sit over the right edge of the image and appear on hover:
-   a fade to black, with everything inside in white. */
+/* On hover the details cover the whole image: a 92% veil in the page's own
+   colour, the image a ghost behind it, the fields in a column on the right.
+   It follows the theme: white and black in light, black and white in dark. */
 .ref-drawer {
-  --fg: #fff;
-  --bg: rgb(0 0 0 / 0.3);
-  --muted: rgb(255 255 255 / 0.62);
-  --rule: rgb(255 255 255 / 0.24);
-  --hover: rgb(255 255 255 / 0.12);
+  --scrim: rgb(255 255 255 / 0.92);
+  --bg: transparent;
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: min(460px, 100%);
-  /* On a narrow, tall image the drawer covers it all, with a shorter fade. */
-  padding-left: min(96px, 12%);
+  inset: 0;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--scrim);
   color: var(--fg);
-  color-scheme: dark;
-  background: linear-gradient(
-    to right,
-    rgb(0 0 0 / 0) 0,
-    rgb(0 0 0 / 0.72) 96px,
-    rgb(0 0 0 / 0.9) 100%
-  );
   opacity: 0;
-  transform: translateX(24px);
   pointer-events: none;
-  transition:
-    opacity 180ms ease-out,
-    transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 180ms ease-out;
+}
+
+:root[data-theme="dark"] .ref-drawer {
+  --scrim: rgb(0 0 0 / 0.92);
+}
+
+.ref-drawer > .ref-panel {
+  width: min(420px, 100%);
+  padding: 24px;
+  transform: translateX(12px);
+  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 /* Stays open while you type in it, even if the pointer wanders off. */
 .ref-overlay:hover .ref-drawer,
 .ref-drawer:focus-within {
   opacity: 1;
-  transform: none;
   pointer-events: auto;
+}
+
+.ref-overlay:hover .ref-drawer > .ref-panel,
+.ref-drawer:focus-within > .ref-panel {
+  transform: none;
 }
 
 @media (hover: none) {
   .ref-drawer {
     opacity: 1;
-    transform: none;
     pointer-events: auto;
   }
+
+  .ref-drawer > .ref-panel {
+    transform: none;
+  }
+}
+
+/* Fields read as text on the veil: no boxes, one hairline underneath. */
+.ref-drawer input:not([type="checkbox"]),
+.ref-drawer textarea,
+.ref-drawer select {
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--rule);
+  padding: 4px 0 6px;
+}
+
+.ref-drawer input:not([type="checkbox"]):hover,
+.ref-drawer textarea:hover,
+.ref-drawer select:hover {
+  border-bottom-color: var(--muted);
+}
+
+.ref-drawer input:not([type="checkbox"]):focus-visible,
+.ref-drawer textarea:focus-visible,
+.ref-drawer select:focus-visible {
+  border-bottom-color: var(--fg);
+}
+
+.ref-drawer button {
+  background: transparent;
 }
 
 .ref-drawer .agent-button:hover,
@@ -757,9 +871,19 @@ button.selected:hover {
   color: var(--fg);
 }
 
-.ref-drawer select option {
-  background: #111;
-  color: #fff;
+.ref-panel .field-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ref-panel .field-head a {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.ref-panel .field-head a:hover {
+  color: var(--fg);
 }
 
 .ref-panel {
@@ -797,7 +921,7 @@ button.selected:hover {
 
 .ref-panel textarea {
   display: block;
-  min-height: 56px;
+  min-height: 44px;
   resize: vertical;
 }
 
@@ -918,10 +1042,6 @@ button.selected:hover {
     --max-h: 100dvh;
   }
 
-  .ref-drawer {
-    width: 100%;
-    padding-left: 48px;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -27,9 +27,18 @@ export function useBoardDrag() {
     if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
   }
 
+  let suppressClick = false;
+
   function end() {
+    if (dragged.value !== null) suppressClick = true;
     dragged.value = null;
     over.value = null;
+  }
+
+  function consumeClick() {
+    if (!suppressClick) return false;
+    suppressClick = false;
+    return true;
   }
 
   function hover(e: DragEvent, parent: string) {
@@ -64,5 +73,5 @@ export function useBoardDrag() {
     }
   }
 
-  return { dragged, over, error, start, end, hover, leave, drop, canDrop };
+  return { dragged, over, error, start, end, hover, leave, drop, canDrop, consumeClick };
 }

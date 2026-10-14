@@ -1,76 +1,43 @@
 <script setup lang="ts">
 import type { BoardTreeNode } from "../types";
 
-const props = defineProps<{
+defineProps<{
   tree: BoardTreeNode[];
   allCount: number;
   unsortedCount: number;
-  currentKind: "all" | "unsorted" | "board";
+  currentKind: "all" | "unsorted" | "board" | "boards";
   currentBoard?: string;
 }>();
 
 const emit = defineEmits<{ refresh: [] }>();
 
-// Inline forms instead of window.prompt/confirm, which embedded browsers block.
-type Mode = "new" | "sub" | "rename" | "delete" | null;
-const mode = ref<Mode>(null);
-const text = ref("");
-const error = ref("");
-const field = ref<HTMLInputElement | null>(null);
+const newBoardText = ref("");
+const newBoardError = ref("");
+const newBoardInput = ref<HTMLInputElement | null>(null);
 
-const onBoard = computed(() => props.currentKind === "board" && !!props.currentBoard);
-
-async function start(m: Mode) {
-  mode.value = m;
-  error.value = "";
-  text.value = m === "rename" ? (props.currentBoard ?? "") : "";
-  await nextTick();
-  field.value?.focus();
+function onNewBoardInput() {
+  newBoardError.value = "";
 }
 
-function cancel() {
-  mode.value = null;
-  error.value = "";
-}
-
-async function submit() {
-  const value = text.value.trim().replace(/^\/+|\/+$/g, "");
+async function submitNewBoard() {
+  const value = newBoardText.value.trim().replace(/^\/+|\/+$/g, "");
   if (!value) return;
   try {
-    if (mode.value === "rename") {
-      if (value !== props.currentBoard) {
-        await $fetch("/api/boards", { method: "PATCH", body: { from: props.currentBoard, to: value } });
-      }
-      emit("refresh");
-      cancel();
-      await navigateTo(`/b/${value}`);
-      return;
-    }
-    const path = mode.value === "sub" ? `${props.currentBoard}/${value}` : value;
-    await $fetch("/api/boards", { method: "POST", body: { path } });
+    await $fetch("/api/boards", { method: "POST", body: { path: value } });
     emit("refresh");
-    cancel();
-    await navigateTo(`/b/${path}`);
+    newBoardText.value = "";
+    newBoardInput.value?.blur();
+    await navigateTo(`/b/${value}`);
   } catch (err: any) {
-    error.value = err?.data?.statusMessage || err?.statusMessage || "Could not save";
+    newBoardError.value = err?.data?.statusMessage || "Could not save";
   }
 }
 
-async function deleteBoard() {
-  if (!props.currentBoard) return;
-  try {
-    await $fetch("/api/boards", { method: "DELETE", query: { path: props.currentBoard } });
-    emit("refresh");
-    cancel();
-    await navigateTo("/");
-  } catch (err: any) {
-    error.value = err?.data?.statusMessage || "Could not delete";
-  }
+function cancelNewBoard() {
+  newBoardText.value = "";
+  newBoardError.value = "";
+  newBoardInput.value?.blur();
 }
-
-watch(() => [props.currentKind, props.currentBoard], cancel);
-
-const drag = useBoardDrag();
 </script>
 
 <template>
@@ -85,6 +52,10 @@ const drag = useBoardDrag();
         <span>Unsorted</span>
         <span class="count">{{ unsortedCount }}</span>
       </NuxtLink>
+      <NuxtLink to="/boards" :class="{ selected: currentKind === 'boards' }">
+        <span>All boards</span>
+        <span class="count">{{ countBoards(tree) }}</span>
+      </NuxtLink>
     </nav>
     <div class="board-tree">
       <BoardTreeNode
@@ -93,50 +64,17 @@ const drag = useBoardDrag();
         :node="node"
         :current="currentBoard"
       />
-    </div>
-    <div
-      v-if="drag.dragged.value && drag.canDrop('')"
-      class="drop-root"
-      :class="{ 'drop-target': drag.over.value === '' }"
-      @dragover="drag.hover($event, '')"
-      @dragleave="drag.leave('')"
-      @drop="drag.drop($event, '')"
-    >
-      Move to top level
-    </div>
-    <p v-if="drag.error.value" class="form-error">{{ drag.error.value }}</p>
-    <div class="sidebar-actions">
-      <template v-if="mode === 'new' || mode === 'sub' || mode === 'rename'">
-        <label class="muted">
-          {{ mode === "new" ? "New board" : mode === "sub" ? `New board in ${currentBoard}` : "Rename to" }}
-        </label>
-        <input
-          ref="field"
-          v-model="text"
-          type="text"
-          :placeholder="mode === 'rename' ? 'Board path' : 'Board name'"
-          @keydown.enter="submit"
-          @keydown.esc.stop="cancel"
-        />
-        <div class="row">
-          <button type="button" @click="submit">{{ mode === "rename" ? "Rename" : "Create" }}</button>
-          <button type="button" @click="cancel">Cancel</button>
-        </div>
-      </template>
-      <template v-else-if="mode === 'delete'">
-        <p class="muted">Delete "{{ currentBoard }}"? Its refs stay in the library.</p>
-        <div class="row">
-          <button type="button" @click="deleteBoard">Delete</button>
-          <button type="button" @click="cancel">Cancel</button>
-        </div>
-      </template>
-      <template v-else>
-        <button type="button" @click="start('new')">New board</button>
-        <button v-if="onBoard" type="button" @click="start('sub')">New sub-board</button>
-        <button v-if="onBoard" type="button" @click="start('rename')">Rename board</button>
-        <button v-if="onBoard" type="button" @click="start('delete')">Delete board</button>
-      </template>
-      <p v-if="error" class="form-error">{{ error }}</p>
+      <input
+        ref="newBoardInput"
+        v-model="newBoardText"
+        type="text"
+        class="new-board"
+        placeholder="New board"
+        @input="onNewBoardInput"
+        @keydown.enter="submitNewBoard"
+        @keydown.esc.stop="cancelNewBoard"
+      />
+      <p v-if="newBoardError" class="form-error new-board-error">{{ newBoardError }}</p>
     </div>
     <footer class="app-footer">
       <span>© 2026 ccmlabs</span>
