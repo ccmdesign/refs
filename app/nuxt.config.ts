@@ -8,7 +8,7 @@ export default defineNuxtConfig({
   runtimeConfig: { appDir: root },
   compatibilityDate: "2024-11-01",
   devServer: {
-    port: 3210,
+    port: Number(process.env.REFS_PORT) || 3210,
   },
   modules: ["@nuxt/fonts"],
   fonts: {

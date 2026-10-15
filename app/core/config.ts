@@ -180,31 +180,25 @@ function parseFileConfig(lib: string): RefsConfig {
   return { tagger, output: { mode } };
 }
 
+const PRESETS = ["omlx", "ollama", "lmstudio", "openrouter", "openai"];
+
+// The short names accepted by REFS_TAGGER and `refs setup --tagger`: a preset,
+// claude, codex, none, an adapter id, or a module path.
+export function taggerFromName(name: string): Pick<TaggerConfig, "adapter" | "preset"> {
+  const value = name.trim();
+  const lower = value.toLowerCase();
+  if (PRESETS.includes(lower)) return { adapter: "openai-compatible", preset: lower };
+  if (lower === "claude") return { adapter: "claude-cli" };
+  if (lower === "codex") return { adapter: "codex-cli" };
+  if (lower === "none") return { adapter: "none" };
+  return { adapter: value };
+}
+
 function applyEnvTagger(tagger: TaggerConfig): TaggerConfig {
   const raw = process.env.REFS_TAGGER;
   if (!raw) return tagger;
-  const value = raw.trim();
-  const legacyPresets = ["omlx", "ollama", "lmstudio", "openrouter", "openai"];
-  if (legacyPresets.includes(value.toLowerCase())) {
-    return {
-      ...tagger,
-      adapter: "openai-compatible",
-      preset: value.toLowerCase(),
-    };
-  }
-  if (value.toLowerCase() === "claude") {
-    return { ...tagger, adapter: "claude-cli", preset: undefined };
-  }
-  if (value.toLowerCase() === "codex") {
-    return { ...tagger, adapter: "codex-cli", preset: undefined };
-  }
-  if (value.toLowerCase() === "none") {
-    return { ...tagger, adapter: "none", preset: undefined };
-  }
-  if (isModulePathAdapter(value)) {
-    return { ...tagger, adapter: value, preset: undefined };
-  }
-  return { ...tagger, adapter: value };
+  const { adapter, preset } = taggerFromName(raw);
+  return { ...tagger, adapter, preset };
 }
 
 export function loadConfig(lib: string): RefsConfig {

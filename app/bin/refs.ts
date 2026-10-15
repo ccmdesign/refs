@@ -19,6 +19,9 @@ import {
   rebuildBoardOutput,
 } from "../core/output.ts";
 import { deleteRef, listRefIdsOnBoard } from "../core/ref.ts";
+import { runDoctor, doctorFailed } from "../core/doctor.ts";
+import { runSetup } from "../core/setup.ts";
+import { installSkill, refsHomeEnvLine, refsRepoRoot } from "../core/skill.ts";
 import {
   checkTagger,
   compareTagFiles,
@@ -50,6 +53,9 @@ Usage:
   refs tag --worker
   refs tag --check
   refs tag --compare <model-a>,<model-b> <file>...
+  refs setup [--tagger <name>] [--model <name>] [--base-url <url>] [--api-key-env <NAME>]
+  refs doctor
+  refs skill install [--to <dir>] [--claude] [--codex] [--force]
 
 Options:
   --json    Machine-readable JSON output
@@ -313,6 +319,71 @@ async function main(): Promise<void> {
       if (!board) fail("refs path requires <board>");
       const p = getGeneratedBoardPath(lib, board);
       console.log(p);
+      return;
+    }
+
+    if (cmd === "setup") {
+      const result = await runSetup(lib, {
+        tagger: flags.tagger as string | undefined,
+        model: flags.model as string | undefined,
+        baseUrl: flags["base-url"] as string | undefined,
+        apiKeyEnv: flags["api-key-env"] as string | undefined,
+      });
+      if (json) out(result, true);
+      else {
+        const lines = [
+          `library: ${result.library}`,
+          result.created ? "config: created config.yaml" : "config: kept config.yaml",
+          `tagger: ${result.tagger.adapter}${result.tagger.preset ? ` (${result.tagger.preset})` : ""}${result.tagger.model ? ` model ${result.tagger.model}` : ""}`,
+        ];
+        for (const d of result.detected) {
+          const status = d.ok ? "ok" : "not found";
+          lines.push(`${d.tagger}: ${status} — ${d.detail}`);
+        }
+        lines.push("next:");
+        for (const n of result.next) lines.push(`  ${n}`);
+        console.log(lines.join("\n"));
+      }
+      return;
+    }
+
+    if (cmd === "doctor") {
+      const checks = await runDoctor(lib);
+      const ok = !doctorFailed(checks);
+      if (json) out({ ok, checks }, true);
+      else {
+        for (const c of checks) {
+          console.log(`${c.status.padEnd(4)} ${c.id}  ${c.detail}`);
+          if (c.fix && (c.status === "warn" || c.status === "fail")) {
+            console.log(`     ${c.fix}`);
+          }
+        }
+      }
+      if (!ok) process.exit(1);
+      return;
+    }
+
+    if (cmd === "skill") {
+      const sub = rest[0];
+      if (sub !== "install") {
+        fail(`Unknown skill subcommand: ${sub ?? "(none)"}`);
+      }
+      const toRaw = flags.to as string | undefined;
+      const results = installSkill({
+        to: toRaw ? [toRaw] : undefined,
+        claude: flags.claude === true,
+        codex: flags.codex === true,
+        force: flags.force === true,
+      });
+      const envLine = refsHomeEnvLine();
+      if (json) {
+        out({ results, env: envLine, refsHome: refsRepoRoot() }, true);
+      } else {
+        for (const r of results) {
+          console.log(`${r.result}  ${r.target}`);
+        }
+        console.log(envLine);
+      }
       return;
     }
 
