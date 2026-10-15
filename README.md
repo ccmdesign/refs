@@ -52,6 +52,8 @@ library/
 
 Set `REFS_LIBRARY` to keep the library somewhere else.
 
+Board images under `out/` follow `output.mode` in `config.yaml` (or `REFS_OUTPUT`): `links` (relative symlinks), `copies` (real files), or `auto` (symlink, then hard link, then copy—default, and what you want on Windows).
+
 ## For agents
 
 Point an agent at a board's generated folder:

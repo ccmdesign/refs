@@ -1,23 +1,225 @@
 import {
   copyFileSync,
   existsSync,
+  linkSync,
+  lstatSync,
   mkdirSync,
   readFileSync,
   readdirSync,
   readlinkSync,
   rmSync,
+  statSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import YAML from "yaml";
 import { dirname, join, relative, resolve } from "node:path";
+import { loadConfig } from "./config.ts";
 import { boardOutputDir, boardYamlPath } from "./paths.ts";
 import type { OutputRefEntry, OutputRefsYaml } from "./types.ts";
 import { slugify } from "./util.ts";
 import { stringifyOutput } from "./yaml.ts";
 import { collectParentBriefs, getBoard, listBoards } from "./board.ts";
 import { getRef } from "./ref.ts";
+
+/** Vitest cannot reliably spy `node:fs` named ESM imports; tests patch these. */
+export const outputFileOps = {
+  symlinkSync,
+  linkSync,
+  copyFileSync,
+};
+
+export type OutputMethod = "symlink" | "hardlink" | "copy";
+
+const outputMethodByLib = new Map<string, OutputMethod>();
+
+export function resetOutputMethodCacheForTests(): void {
+  outputMethodByLib.clear();
+}
+
+function errCode(err: unknown): string | undefined {
+  if (err && typeof err === "object" && "code" in err) {
+    return String((err as NodeJS.ErrnoException).code);
+  }
+  return undefined;
+}
+
+function isSymlinkFallbackError(err: unknown): boolean {
+  const code = errCode(err);
+  return (
+    code === "EPERM" ||
+    code === "EACCES" ||
+    code === "ENOTSUP" ||
+    code === "EINVAL" ||
+    code === "UNKNOWN"
+  );
+}
+
+function isHardlinkFallbackError(err: unknown): boolean {
+  const code = errCode(err);
+  return code === "EXDEV" || code === "EPERM";
+}
+
+function isEntryCorrect(
+  entryPath: string,
+  absStored: string,
+  method: OutputMethod,
+): boolean {
+  if (!existsSync(entryPath)) return false;
+  const entryStat = lstatSync(entryPath);
+  const storedStat = statSync(absStored);
+
+  if (method === "symlink") {
+    if (!entryStat.isSymbolicLink()) return false;
+    try {
+      const target = readlinkSync(entryPath);
+      return resolve(dirname(entryPath), target) === absStored;
+    } catch {
+      return false;
+    }
+  }
+
+  if (method === "hardlink") {
+    if (entryStat.isSymbolicLink() || !entryStat.isFile()) return false;
+    return entryStat.ino === storedStat.ino && entryStat.dev === storedStat.dev;
+  }
+
+  if (entryStat.isSymbolicLink() || !entryStat.isFile()) return false;
+  return entryStat.size === storedStat.size;
+}
+
+function removeEntry(entryPath: string): void {
+  if (!existsSync(entryPath)) return;
+  unlinkSync(entryPath);
+}
+
+function createSymlink(rel: string, entryPath: string, mode: string): void {
+  try {
+    outputFileOps.symlinkSync(rel, entryPath);
+  } catch (err) {
+    throw new Error(
+      `output.mode ${mode}: could not create symlink (${errCode(err) ?? "error"}). Try output.mode: auto in config.yaml`,
+    );
+  }
+}
+
+function createHardlink(absStored: string, entryPath: string): void {
+  outputFileOps.linkSync(absStored, entryPath);
+}
+
+function createCopy(absStored: string, entryPath: string): void {
+  outputFileOps.copyFileSync(absStored, entryPath);
+}
+
+function createWithMethod(
+  method: OutputMethod,
+  rel: string,
+  absStored: string,
+  entryPath: string,
+  configMode: string,
+): void {
+  if (method === "symlink") {
+    createSymlink(rel, entryPath, configMode);
+  } else if (method === "hardlink") {
+    createHardlink(absStored, entryPath);
+  } else {
+    createCopy(absStored, entryPath);
+  }
+}
+
+function tryAutoMethod(
+  lib: string,
+  rel: string,
+  absStored: string,
+  entryPath: string,
+): OutputMethod {
+  try {
+    outputFileOps.symlinkSync(rel, entryPath);
+    outputMethodByLib.set(lib, "symlink");
+    return "symlink";
+  } catch (err) {
+    if (!isSymlinkFallbackError(err)) throw err;
+  }
+
+  try {
+    outputFileOps.linkSync(absStored, entryPath);
+    outputMethodByLib.set(lib, "hardlink");
+    return "hardlink";
+  } catch (err) {
+    if (!isHardlinkFallbackError(err)) throw err;
+  }
+
+  outputFileOps.copyFileSync(absStored, entryPath);
+  outputMethodByLib.set(lib, "copy");
+  return "copy";
+}
+
+function ensureOutputEntry(
+  lib: string,
+  mode: "links" | "copies" | "auto",
+  rel: string,
+  absStored: string,
+  entryPath: string,
+): void {
+  let method: OutputMethod;
+
+  if (mode === "links") {
+    method = "symlink";
+  } else if (mode === "copies") {
+    method = "copy";
+  } else {
+    const cached = outputMethodByLib.get(lib);
+    if (cached) {
+      method = cached;
+    } else {
+      for (const candidate of ["symlink", "hardlink", "copy"] as const) {
+        if (isEntryCorrect(entryPath, absStored, candidate)) {
+          outputMethodByLib.set(lib, candidate);
+          return;
+        }
+      }
+      if (existsSync(entryPath)) removeEntry(entryPath);
+      tryAutoMethod(lib, rel, absStored, entryPath);
+      return;
+    }
+  }
+
+  if (isEntryCorrect(entryPath, absStored, method)) return;
+  if (existsSync(entryPath)) removeEntry(entryPath);
+  createWithMethod(method, rel, absStored, entryPath, mode);
+}
+
+export function probeOutputMethod(lib: string): OutputMethod {
+  const probeDir = join(lib, ".cache", "probe");
+  mkdirSync(probeDir, { recursive: true });
+  const storedPath = join(probeDir, "stored.txt");
+  const entryPath = join(probeDir, "entry.txt");
+  writeFileSync(storedPath, "probe");
+  const absStored = resolve(storedPath);
+  const rel = relative(probeDir, absStored);
+
+  try {
+    try {
+      outputFileOps.symlinkSync(rel, entryPath);
+      return "symlink";
+    } catch (err) {
+      if (!isSymlinkFallbackError(err)) throw err;
+    }
+
+    try {
+      outputFileOps.linkSync(absStored, entryPath);
+      return "hardlink";
+    } catch (err) {
+      if (!isHardlinkFallbackError(err)) throw err;
+    }
+
+    outputFileOps.copyFileSync(absStored, entryPath);
+    return "copy";
+  } finally {
+    rmSync(probeDir, { recursive: true, force: true });
+  }
+}
 
 function sortBoardRefs(
   board: ReturnType<typeof getBoard>,
@@ -74,6 +276,9 @@ function buildOutputYaml(
 export async function rebuildBoardOutput(lib: string, boardPath: string): Promise<void> {
   if (!existsSync(boardYamlPath(lib, boardPath))) return;
 
+  const { output } = loadConfig(lib);
+  const mode = output.mode;
+
   const outDir = boardOutputDir(lib, boardPath);
   mkdirSync(outDir, { recursive: true });
 
@@ -103,16 +308,7 @@ export async function rebuildBoardOutput(lib: string, boardPath: string): Promis
 
   for (const [name, { rel, abs }] of desiredLinks) {
     const linkPath = join(outDir, name);
-    if (existsSync(linkPath)) {
-      try {
-        const current = readlinkSync(linkPath);
-        if (resolve(dirname(linkPath), current) === abs) continue;
-      } catch {
-        /* not a symlink */
-      }
-      unlinkSync(linkPath);
-    }
-    symlinkSync(rel, linkPath);
+    ensureOutputEntry(lib, mode, rel, abs, linkPath);
   }
 
   const yaml = buildOutputYaml(lib, boardPath);

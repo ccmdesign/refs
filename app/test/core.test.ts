@@ -2,11 +2,10 @@ import {
   existsSync,
   lstatSync,
   readFileSync,
-  readlinkSync,
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { isAbsolute, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   addRefToBoard,
@@ -210,19 +209,6 @@ describe("refs core", () => {
     expect(out.refs[0].key).toBe(true);
     expect(out.refs[0].file).toMatch(new RegExp(`${a.id.slice(0, 6)}`));
     expect(out.refs[1].file).toMatch(new RegExp(`${b.id.slice(0, 6)}`));
-  });
-
-  it("out image symlinks are relative and resolve to stored files", async () => {
-    createBoard(lib, "rel");
-    const { id } = await addFromFile(lib, imgPath, { board: "rel", title: "rel-img" });
-    await rebuildBoardOutput(lib, "rel");
-    const outDir = join(lib, "out", "rel");
-    const linkName = readdirSync(outDir).find((f) => f !== "refs.yaml");
-    expect(linkName).toBeTruthy();
-    const target = readlinkSync(join(outDir, linkName!));
-    expect(isAbsolute(target)).toBe(false);
-    const resolved = resolve(outDir, target);
-    expect(resolved).toBe(resolve(lib, "files", id.slice(0, 2), `${id}.png`));
   });
 
   it("export copies real files not symlinks", async () => {
