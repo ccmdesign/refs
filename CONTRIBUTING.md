@@ -18,7 +18,9 @@ Node 22.18 or newer is required: the CLI runs TypeScript files directly.
 
 - `app/core/`: the library itself. Plain TypeScript on Node APIs, no framework.
   Everything that reads or writes a library lives here, and has tests.
-  Tagging goes through `core/config.ts` and `core/tagger/adapters/`.
+  First-run and health checks live in `core/config.ts`, `core/setup.ts`,
+  `core/doctor.ts` and `core/skill.ts`. Tagging goes through
+  `core/tagger/adapters/`.
 - `app/bin/refs.ts`: the CLI, a thin wrapper over `core/`.
 - `app/server/`: HTTP routes, thin wrappers over `core/`.
 - `app/app/`: the Nuxt interface.
@@ -26,6 +28,9 @@ Node 22.18 or newer is required: the CLI runs TypeScript files directly.
 Two rules keep `core/` usable from the CLI without a build step: use only
 erasable TypeScript (no enums, namespaces or parameter properties), and write
 relative imports with the `.ts` extension.
+
+CI runs on Linux, macOS and Windows. Tests must not assume symlinks or a POSIX
+shell.
 
 ## Before opening a pull request
 

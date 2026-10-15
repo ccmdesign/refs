@@ -1,6 +1,6 @@
 # Plan: make _refs run on any computer
 
-Status: agreed 2026-10-15, not built yet.
+Status: built 2026-10-15 (commits d31d8e8 to the AGENTS.md commit).
 
 Decisions:
 - Tagging is off until set up; `refs setup` detects and suggests, it never turns a tagger on by itself.

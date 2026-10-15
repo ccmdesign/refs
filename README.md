@@ -18,15 +18,21 @@ Everything is plain files on your own machine. There is no account, no database 
 
 ## Quick start
 
-Requires Node 22.18 or newer and pnpm.
+Node 22.18 or newer; pnpm through `corepack enable`.
 
 ```bash
-cd app
-pnpm install
+cd app && pnpm install
+pnpm refs setup
 pnpm dev
 ```
 
-Open http://localhost:3210. The library is created at `library/`, next to `app/`, the first time you add something.
+If something is off, run `pnpm refs doctor`.
+
+Open http://localhost:3210. `pnpm refs setup` creates the library at `library/`, next to `app/`; set `REFS_LIBRARY` to keep it elsewhere.
+
+### Set it up with your coding agent
+
+Paste: *Clone https://github.com/ccmdesign/refs and set it up by following AGENTS.md.* The agent will ask whether you want image tagging.
 
 From the command line:
 
@@ -84,7 +90,7 @@ refs:
 
 For a sandbox or another repository that cannot follow links into the library, `pnpm refs export <board> --to <dir>` writes the same folder with real copies.
 
-`app/skills/refs/SKILL.md` is a ready-made skill that teaches an agent this convention. Copy it into your agent's skills folder and set `REFS_HOME` to this repository's path.
+`app/skills/refs/SKILL.md` is a ready-made skill that teaches an agent this convention. Install it with `pnpm refs skill install` and set `REFS_HOME` to this repository's path.
 
 ## CLI
 
@@ -100,7 +106,11 @@ refs rm <id> --board <board>        take a ref off one board
 refs delete <id>                    move a ref to the trash
 refs export <board> --to <dir>
 refs rebuild                        regenerate every folder under out/
+refs setup [--tagger <name>] [--model <name>] ...
+refs doctor
+refs skill install [--claude | --codex | --to <dir>]
 refs tag <id> | --board <board> | --untagged
+refs tag --check
 ```
 
 Add `--json` for machine-readable output. The CLI works whether or not the app is running. It cannot yet edit the note or tags of an existing ref; use the app for that.
