@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync, renameSync } from "node:fs";
 import { mkdir, readdir } from "node:fs/promises";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import {
   boardYamlPath,
   refYamlPath,
@@ -146,8 +146,7 @@ export async function deleteRef(lib: string, id: string): Promise<void> {
   if (ref.file) {
     const imgPath = join(lib, ref.file);
     if (existsSync(imgPath)) {
-      const base = imgPath.split("/").pop()!;
-      renameSync(imgPath, join(trash, base));
+      renameSync(imgPath, join(trash, basename(imgPath)));
     }
   }
 

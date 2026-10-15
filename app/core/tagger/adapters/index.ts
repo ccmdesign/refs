@@ -1,3 +1,4 @@
+import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { TaggerConfig } from "../../config.ts";
@@ -25,7 +26,9 @@ async function loadModuleAdapter(
     : resolve(lib, rel);
   let mod: unknown;
   try {
-    mod = await import(pathToFileURL(abs).href);
+    // realpath expands Windows 8.3 short names (RUNNER~1), which some loaders
+    // cannot resolve once pathToFileURL has escaped the ~.
+    mod = await import(pathToFileURL(existsSync(abs) ? realpathSync.native(abs) : abs).href);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     throw new Error(`${rel}: ${msg}`);

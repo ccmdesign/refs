@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import YAML from "yaml";
 
 export type TaggerConfig = {
@@ -42,6 +42,7 @@ function isModulePathAdapter(value: string): boolean {
   return (
     value.startsWith(".") ||
     value.startsWith("/") ||
+    isAbsolute(value) ||
     value.endsWith(".ts") ||
     value.endsWith(".js") ||
     value.endsWith(".mjs")
