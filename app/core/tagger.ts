@@ -3,45 +3,34 @@ import { existsSync, mkdirSync, readFileSync, unlinkSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { loadConfig, type TaggerConfig } from "./config.ts";
 import { getBoard, listBoards } from "./board.ts";
-import { appDir, ensureLibraryDirs } from "./paths.ts";
+import { appDir, ensureLibraryDirs, getLibraryPath } from "./paths.ts";
 import { getRef, listAllRefs, updateRef } from "./ref.ts";
 import type { RefData } from "./types.ts";
 import { rebuildBoardOutput } from "./output.ts";
 import { atomicWriteSync } from "./util.ts";
-import { resolveTagModelFn, type TagModelFn } from "./tagger/backends.ts";
+import { createAdapter, type TaggerAdapter, type TaggerCheck } from "./tagger/adapters/index.ts";
+import { noneAdapterOffMessage } from "./tagger/adapters/none.ts";
 import { prepareFileJpeg, prepareTaggerJpeg } from "./tagger/image.ts";
 import { parseTaggerResponse } from "./tagger/parse.ts";
 import { buildTagPrompt, readVocabulary } from "./tagger/vocabulary.ts";
-
 const LOCK_STALE_MS = 2 * 60 * 1000;
 
-let injectedModelFn: TagModelFn | null = null;
+let injectedAdapter: TaggerAdapter | null = null;
 const workerFailedIds = new Set<string>();
 
-export function setTaggerModelFnForTests(fn: TagModelFn | null): void {
-  injectedModelFn = fn;
+export function setTaggerAdapterForTests(adapter: TaggerAdapter | null): void {
+  injectedAdapter = adapter;
 }
 
 export function resetTaggerWorkerStateForTests(): void {
   workerFailedIds.clear();
 }
 
-export type TaggerMode = "omlx" | "claude" | "codex" | "none";
-
-export function getTaggerMode(): TaggerMode {
-  const raw = (process.env.REFS_TAGGER ?? "omlx").toLowerCase();
-  if (raw === "claude" || raw === "codex" || raw === "none") return raw;
-  return "omlx";
-}
-
-export function getTaggerModel(): string {
-  const override = process.env.REFS_TAGGER_MODEL;
-  if (override) return override;
-  const mode = getTaggerMode();
-  if (mode === "omlx") return "Qwen3.8-27B-8bit";
-  return mode;
+function taggerEnabled(lib: string): boolean {
+  if (injectedAdapter) return true;
+  return loadConfig(lib).tagger.adapter !== "none";
 }
 
 function taggerLockPath(lib: string): string {
@@ -147,16 +136,24 @@ async function rebuildBoardsForRef(lib: string, id: string): Promise<void> {
   }
 }
 
-function modelFn(): TagModelFn {
-  if (injectedModelFn) return injectedModelFn;
-  return resolveTagModelFn(getTaggerMode());
+async function resolveAdapter(lib: string): Promise<{ adapter: TaggerAdapter; cfg: TaggerConfig }> {
+  if (injectedAdapter) {
+    return { adapter: injectedAdapter, cfg: loadConfig(lib).tagger };
+  }
+  const cfg = loadConfig(lib);
+  if (cfg.tagger.adapter === "none") {
+    throw new Error(noneAdapterOffMessage);
+  }
+  const adapter = await createAdapter(cfg.tagger, lib);
+  return { adapter, cfg: cfg.tagger };
 }
 
-async function tagRefCore(lib: string, id: string): Promise<RefData> {
-  const mode = getTaggerMode();
-  if (mode === "none") {
-    throw new Error("Tagger is disabled (REFS_TAGGER=none)");
-  }
+async function tagRefCore(
+  lib: string,
+  id: string,
+  shared?: { adapter: TaggerAdapter; cfg: TaggerConfig },
+): Promise<RefData> {
+  const { adapter, cfg } = shared ?? await resolveAdapter(lib);
   ensureLibraryDirs(lib);
   const ref = getRef(lib, id);
   if (!ref.file) {
@@ -170,15 +167,16 @@ async function tagRefCore(lib: string, id: string): Promise<RefData> {
   const vocabulary = readVocabulary(lib);
   const prompt = buildTagPrompt(vocabulary);
   const jpegPath = await prepareTaggerJpeg(lib, id, imagePath);
-  const model = getTaggerModel();
-  const raw = await modelFn()({ prompt, jpegPath, model });
+  const model = cfg.model;
+  const raw = await adapter.describe({ prompt, imagePath: jpegPath, model });
   const parsed = parseTaggerResponse(raw);
+  const storedModel = cfg.model ?? adapter.id;
   clearFailure(lib, id);
   updateRef(lib, id, {
     auto: {
       tags: parsed.tags,
       description: parsed.description,
-      model,
+      model: storedModel,
       at: new Date().toISOString(),
     },
   });
@@ -191,7 +189,7 @@ export async function tagRef(lib: string, id: string): Promise<RefData> {
 }
 
 export function pendingTagCount(lib: string): number {
-  if (getTaggerMode() === "none") return 0;
+  if (!taggerEnabled(lib)) return 0;
   const failures = readFailures(lib);
   let count = 0;
   for (const ref of listAllRefs(lib)) {
@@ -201,7 +199,7 @@ export function pendingTagCount(lib: string): number {
 }
 
 export function kickTagger(lib: string): void {
-  if (getTaggerMode() === "none") return;
+  if (!taggerEnabled(lib)) return;
   ensureLibraryDirs(lib);
   const child = spawn(
     process.execPath,
@@ -216,18 +214,25 @@ export function kickTagger(lib: string): void {
 }
 
 export async function runTagWorker(lib: string): Promise<void> {
-  if (getTaggerMode() === "none") return;
+  if (!taggerEnabled(lib)) return;
   ensureLibraryDirs(lib);
   if (lockIsLive(lib)) return;
 
   touchLock(lib);
+  let shared: { adapter: TaggerAdapter; cfg: TaggerConfig } | undefined;
+  try {
+    shared = await resolveAdapter(lib);
+  } catch {
+    releaseLock(lib);
+    return;
+  }
   try {
     for (;;) {
       const id = findNextUntaggedId(lib);
       if (!id) break;
       touchLock(lib);
       try {
-        await tagRefCore(lib, id);
+        await tagRefCore(lib, id, shared);
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         recordFailure(lib, id, msg);
@@ -237,6 +242,15 @@ export async function runTagWorker(lib: string): Promise<void> {
     workerFailedIds.clear();
     releaseLock(lib);
   }
+}
+
+export async function checkTagger(
+  lib: string,
+): Promise<TaggerCheck & { adapter: string }> {
+  const cfg = loadConfig(lib);
+  const adapter = await createAdapter(cfg.tagger, lib);
+  const result = await adapter.check();
+  return { ...result, adapter: cfg.tagger.adapter };
 }
 
 export type CompareRow = {
@@ -256,11 +270,13 @@ export async function compareTagFiles(
   modelB: string,
   files: string[],
 ): Promise<CompareRow[]> {
+  const lib = getLibraryPath();
+  const { adapter } = await resolveAdapter(lib);
+
   const cacheDir = join(tmpdir(), `refs-tag-compare-${process.pid}`);
   await mkdir(join(cacheDir, "tagger"), { recursive: true });
   const vocabulary: string[] = [];
   const prompt = buildTagPrompt(vocabulary);
-  const call = callOmlxForCompare;
 
   const rows: CompareRow[] = [];
   for (const file of files) {
@@ -270,12 +286,12 @@ export async function compareTagFiles(
     await prepareFileJpeg(abs, jpegPath);
 
     const t0 = performance.now();
-    const rawA = await call({ prompt, jpegPath, model: modelA });
+    const rawA = await adapter.describe({ prompt, imagePath: jpegPath, model: modelA });
     const secondsA = (performance.now() - t0) / 1000;
     const parsedA = parseTaggerResponse(rawA);
 
     const t1 = performance.now();
-    const rawB = await call({ prompt, jpegPath, model: modelB });
+    const rawB = await adapter.describe({ prompt, imagePath: jpegPath, model: modelB });
     const secondsB = (performance.now() - t1) / 1000;
     const parsedB = parseTaggerResponse(rawB);
 
@@ -292,14 +308,6 @@ export async function compareTagFiles(
     });
   }
   return rows;
-}
-
-async function callOmlxForCompare(input: {
-  prompt: string;
-  jpegPath: string;
-  model: string;
-}): Promise<string> {
-  return resolveTagModelFn("omlx")(input);
 }
 
 export function formatCompareTable(rows: CompareRow[]): string {

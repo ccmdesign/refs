@@ -1,3 +1,4 @@
+import { createServer } from "node:http";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,17 +6,18 @@ import { createBoard } from "../core/board.ts";
 import { addFromFile } from "../core/intake.ts";
 import { vocabularyPath } from "../core/paths.ts";
 import { getRef } from "../core/ref.ts";
+import type { TaggerAdapter } from "../core/tagger/adapters/types.ts";
 import {
   kickTagger,
   pendingTagCount,
   resetTaggerWorkerStateForTests,
   runTagWorker,
-  setTaggerModelFnForTests,
+  setTaggerAdapterForTests,
   tagRef,
 } from "../core/tagger.ts";
 import { parseTaggerResponse } from "../core/tagger/parse.ts";
 import { buildTagPrompt, readVocabulary } from "../core/tagger/vocabulary.ts";
-import { cleanupLibrary, tempLibrary, tinyPng } from "./helpers.ts";
+import { cleanupLibrary, tempLibrary, tinyPng, writeLibraryConfig } from "./helpers.ts";
 import YAML from "yaml";
 
 const okJson = JSON.stringify({
@@ -23,21 +25,35 @@ const okJson = JSON.stringify({
   description: "Tight typographic grid with restrained monochrome palette.",
 });
 
+function mockAdapter(describeFn?: () => Promise<string>): TaggerAdapter {
+  return {
+    id: "test-adapter",
+    async check() {
+      return { ok: true, detail: "mock" };
+    },
+    async describe() {
+      return describeFn ? await describeFn() : okJson;
+    },
+  };
+}
+
 describe("tagger", () => {
   let lib: string;
 
   beforeEach(() => {
     lib = tempLibrary();
     resetTaggerWorkerStateForTests();
-    setTaggerModelFnForTests(null);
+    setTaggerAdapterForTests(null);
     vi.unstubAllEnvs();
   });
 
   afterEach(() => {
-    setTaggerModelFnForTests(null);
+    setTaggerAdapterForTests(null);
     resetTaggerWorkerStateForTests();
     cleanupLibrary(lib);
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   describe("parseTaggerResponse", () => {
@@ -103,7 +119,7 @@ describe("tagger", () => {
 
   describe("tagRef", () => {
     it("writes auto without touching human tags", async () => {
-      setTaggerModelFnForTests(async () => okJson);
+      setTaggerAdapterForTests(mockAdapter());
       createBoard(lib, "main");
       const imgPath = join(lib, "img.png");
       await tinyPng(imgPath);
@@ -133,14 +149,14 @@ describe("tagger", () => {
       const { addFromUrl } = await import("../core/intake.ts");
       createBoard(lib, "links");
       const { id } = await addFromUrl(lib, "https://example.com/x", { board: "links" });
-      setTaggerModelFnForTests(async () => okJson);
+      setTaggerAdapterForTests(mockAdapter());
       await expect(tagRef(lib, id)).rejects.toThrow(/no local image/);
     });
   });
 
   describe("worker", () => {
     it("drains several refs and stops", async () => {
-      setTaggerModelFnForTests(async () => okJson);
+      setTaggerAdapterForTests(mockAdapter());
       createBoard(lib, "b");
       for (let i = 0; i < 3; i++) {
         const p = join(lib, `img-${i}.png`);
@@ -157,10 +173,12 @@ describe("tagger", () => {
 
     it("records failure and does not loop forever", async () => {
       let calls = 0;
-      setTaggerModelFnForTests(async () => {
-        calls++;
-        throw new Error("model down");
-      });
+      setTaggerAdapterForTests(
+        mockAdapter(async () => {
+          calls++;
+          throw new Error("model down");
+        }),
+      );
       createBoard(lib, "b");
       const p = join(lib, "one.png");
       await tinyPng(p);
@@ -175,6 +193,17 @@ describe("tagger", () => {
     });
   });
 
+  describe("default config (tagging off)", () => {
+    it("kickTagger is a no-op and pendingTagCount is 0", async () => {
+      createBoard(lib, "b");
+      const p = join(lib, "img.png");
+      await tinyPng(p);
+      await addFromFile(lib, p, { board: "b" });
+      kickTagger(lib);
+      expect(pendingTagCount(lib)).toBe(0);
+    });
+  });
+
   describe("REFS_TAGGER=none", () => {
     it("kickTagger is a no-op and pendingTagCount is 0", async () => {
       vi.stubEnv("REFS_TAGGER", "none");
@@ -184,6 +213,56 @@ describe("tagger", () => {
       await addFromFile(lib, p, { board: "b" });
       kickTagger(lib);
       expect(pendingTagCount(lib)).toBe(0);
+    });
+  });
+
+  describe("config.yaml openai-compatible worker", () => {
+    it("tags a ref end to end against a local mock server", async () => {
+      const server = createServer((req, res) => {
+        if (req.url === "/v1/models") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ data: [{ id: "vision-1" }] }));
+          return;
+        }
+        if (req.url === "/v1/chat/completions") {
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(
+            JSON.stringify({
+              choices: [{ message: { content: okJson } }],
+            }),
+          );
+          return;
+        }
+        res.writeHead(404);
+        res.end();
+      });
+      await new Promise<void>((resolve, reject) => {
+        server.listen(0, "127.0.0.1", (err?: Error) => (err ? reject(err) : resolve()));
+      });
+      const addr = server.address();
+      if (!addr || typeof addr === "string") throw new Error("no port");
+      const base = `http://127.0.0.1:${addr.port}/v1`;
+
+      writeLibraryConfig(lib, {
+        tagger: {
+          adapter: "openai-compatible",
+          base_url: base,
+          model: "vision-1",
+        },
+      });
+      vi.stubEnv("REFS_LIBRARY", lib);
+
+      createBoard(lib, "b");
+      const p = join(lib, "one.png");
+      await tinyPng(p);
+      await addFromFile(lib, p, { board: "b" });
+      expect(pendingTagCount(lib)).toBe(1);
+      await runTagWorker(lib);
+      expect(pendingTagCount(lib)).toBe(0);
+      const ref = getRef(lib, (await import("../core/ref.ts")).listAllRefs(lib)[0].id);
+      expect(ref.auto?.tags).toContain("swiss");
+
+      await new Promise<void>((r) => server.close(() => r()));
     });
   });
 });

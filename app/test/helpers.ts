@@ -1,7 +1,10 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
+import YAML from "yaml";
+import type { RefsConfig } from "../core/config.ts";
+import { configPath } from "../core/config.ts";
 
 export function tempLibrary(): string {
   return mkdtempSync(join(tmpdir(), "refs-test-"));
@@ -9,6 +12,10 @@ export function tempLibrary(): string {
 
 export function cleanupLibrary(lib: string): void {
   rmSync(lib, { recursive: true, force: true });
+}
+
+export function writeLibraryConfig(lib: string, config: Partial<RefsConfig>): void {
+  writeFileSync(configPath(lib), YAML.stringify(config));
 }
 
 export async function tinyPng(
@@ -20,6 +27,5 @@ export async function tinyPng(
   })
     .png()
     .toBuffer();
-  const { writeFileSync } = await import("node:fs");
   writeFileSync(path, buf);
 }

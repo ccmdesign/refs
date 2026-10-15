@@ -20,6 +20,7 @@ import {
 } from "../core/output.ts";
 import { deleteRef, listRefIdsOnBoard } from "../core/ref.ts";
 import {
+  checkTagger,
   compareTagFiles,
   formatCompareTable,
   kickTagger,
@@ -47,6 +48,7 @@ Usage:
   refs tag --board <board>
   refs tag --untagged
   refs tag --worker
+  refs tag --check
   refs tag --compare <model-a>,<model-b> <file>...
 
 Options:
@@ -151,6 +153,17 @@ async function main(): Promise<void> {
     }
 
     if (cmd === "tag") {
+      if (flags.check === true) {
+        const result = await checkTagger(lib);
+        if (json) out(result, true);
+        else {
+          console.log(`adapter: ${result.adapter}`);
+          console.log(result.ok ? "ok" : "fail");
+          console.log(result.detail);
+        }
+        if (!result.ok && result.adapter !== "none") process.exit(1);
+        return;
+      }
       if (flags.worker === true || flags.untagged === true) {
         await runTagWorker(lib);
         out({ tagged: true }, json);

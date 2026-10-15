@@ -105,18 +105,63 @@ Add `--json` for machine-readable output. The CLI works whether or not the app i
 
 ## Tagging
 
-Tagging is optional and runs after an add, in the background.
+Tagging is **off by default**. When enabled, it runs after an add in the background. Configure it in `library/config.yaml` (create the file if it is not there) or with environment variables.
 
-| Variable | Meaning |
+**Ollama example** (`library/config.yaml`):
+
+```yaml
+tagger:
+  adapter: openai-compatible
+  preset: ollama
+  model: qwen2.5vl:7b
+output:
+  mode: auto
+```
+
+**oMLX example**:
+
+```yaml
+tagger:
+  adapter: openai-compatible
+  preset: omlx
+  model: your-vision-model
+  api_key_env: OMLX_API_KEY
+output:
+  mode: auto
+```
+
+| Adapter | Preset / notes |
 |---|---|
-| `REFS_TAGGER` | `omlx` (default), `claude`, `codex`, or `none` to switch tagging off |
-| `REFS_TAGGER_MODEL` | Model name to use instead of the backend's default |
-| `OMLX_BASE_URL` | OpenAI-compatible endpoint, default `http://127.0.0.1:9999/v1` |
-| `OMLX_API_KEY` | Key for that endpoint, if it needs one |
+| `none` | Tagging disabled (default) |
+| `openai-compatible` | Any `/v1/chat/completions` server with images |
+| | `omlx` → `http://127.0.0.1:9999/v1` (`OMLX_BASE_URL` overrides) |
+| | `ollama` → `http://127.0.0.1:11434/v1` |
+| | `lmstudio` → `http://127.0.0.1:1234/v1` |
+| | `openrouter` → OpenRouter (`OPENROUTER_API_KEY`) |
+| | `openai` → OpenAI (`OPENAI_API_KEY`) |
+| | Or set `base_url` instead of `preset` |
+| `claude-cli` | `claude` on your PATH (subscription auth) |
+| `codex-cli` | `codex` on your PATH |
+| module path | `./my-adapter.ts` — see [docs/adapters.md](docs/adapters.md) |
 
-The `omlx` backend talks to any local OpenAI-compatible server that accepts images. The `claude` and `codex` backends shell out to those command-line tools; they are written but have not been exercised yet.
+**Environment overrides** (applied after the file):
 
-If you do not run a local model, set `REFS_TAGGER=none`.
+| Variable | Sets |
+|---|---|
+| `REFS_TAGGER` | Adapter (`none`, legacy `omlx`/`ollama`/…, `claude`, `codex`, or a module path) |
+| `REFS_TAGGER_MODEL` | `tagger.model` |
+| `REFS_TAGGER_BASE_URL` | `tagger.base_url` |
+| `REFS_TAGGER_API_KEY_ENV` | Name of the env var that holds the API key |
+| `REFS_OUTPUT` | `output.mode` (`links`, `copies`, `auto`) |
+
+Never put API keys in `config.yaml`. Name an environment variable with `api_key_env` and export the key in your shell.
+
+Check that the configured tagger is reachable:
+
+```bash
+pnpm refs tag --check
+pnpm refs tag --check --json
+```
 
 ## Good to know
 
