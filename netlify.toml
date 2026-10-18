@@ -1,0 +1,14 @@
+# The landing page at refs.ccm-labs.ca: plain static files in site/, no build.
+# The app itself (app/) runs locally and is not deployed.
+
+[build]
+  publish = "site"
+  command = ""
+  # Skip deploys when nothing under site/ changed.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- site/ netlify.toml"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"

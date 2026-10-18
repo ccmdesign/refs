@@ -1,0 +1,1364 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>_refs: design references your agent can read</title>
+    <meta
+      name="description"
+      content="A free, open-source library for design references. Boards and briefs as plain files on your own machine, ready for your coding agent to read."
+    />
+    <link rel="canonical" href="https://refs.ccm-labs.ca/" />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://refs.ccm-labs.ca/" />
+    <meta property="og:title" content="_refs: design references your agent can read" />
+    <meta
+      property="og:description"
+      content="A free, open-source library for design references. Boards and briefs as plain files on your own machine, ready for your coding agent to read."
+    />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://api.fontshare.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://api.fontshare.com/v2/css?f[]=switzer@300,400,500,600&display=swap"
+    />
+    <script>
+      // Same key the app uses; set before first paint so dark never flashes white.
+      try {
+        var t = localStorage.getItem("refs-theme");
+        if (t === "dark" || t === "light") document.documentElement.dataset.theme = t;
+      } catch (e) {}
+    </script>
+    <style>
+      /* Tokens: the app's own. Two inks, one rule colour, one spacing scale (4 8 12 16 24 32 48). */
+      :root {
+        --fg: #000;
+        --bg: #fff;
+        --muted: #6b6b6b;
+        --hover: #f5f5f5;
+        --rule: #e6e6e6;
+        --sidebar: 232px;
+        --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        color-scheme: light;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+          --fg: #fff;
+          --bg: #000;
+          --muted: #9a9a9a;
+          --hover: #1a1a1a;
+          --rule: #2b2b2b;
+          color-scheme: dark;
+        }
+      }
+
+      :root[data-theme="dark"] {
+        --fg: #fff;
+        --bg: #000;
+        --muted: #9a9a9a;
+        --hover: #1a1a1a;
+        --rule: #2b2b2b;
+        color-scheme: dark;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        scroll-padding-top: 24px;
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+      }
+
+      body {
+        margin: 0;
+        font-family: "Switzer", system-ui, sans-serif;
+        font-size: 15px;
+        line-height: 1.5;
+        color: var(--fg);
+        background: var(--bg);
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      ::selection {
+        background: var(--fg);
+        color: var(--bg);
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--fg);
+        outline-offset: 2px;
+      }
+
+      h1,
+      h2,
+      h3,
+      p,
+      ul,
+      ol,
+      pre {
+        margin: 0;
+      }
+
+      ul,
+      ol {
+        padding: 0;
+        list-style: none;
+      }
+
+      a {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      code,
+      pre {
+        font-family: var(--mono);
+        font-size: 12.5px;
+      }
+
+      button {
+        font: inherit;
+        color: inherit;
+        background: var(--bg);
+        border: 1px solid var(--rule);
+        border-radius: 0;
+        padding: 4px 8px;
+        cursor: pointer;
+        transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+      }
+
+      button:hover {
+        background: var(--hover);
+      }
+
+      .muted {
+        color: var(--muted);
+      }
+
+      .skip {
+        position: absolute;
+        left: -9999px;
+      }
+
+      .skip:focus {
+        left: 16px;
+        top: 16px;
+        z-index: 10;
+        background: var(--fg);
+        color: var(--bg);
+        padding: 4px 8px;
+      }
+
+      /* Shell: the app's sidebar, a hairline, then the page. */
+
+      .shell {
+        display: grid;
+        grid-template-columns: var(--sidebar) 1px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .rule-v {
+        background: var(--rule);
+      }
+
+      .sidebar {
+        position: sticky;
+        top: 0;
+        align-self: start;
+        height: 100vh;
+        overflow-y: auto;
+        padding: 24px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+        font-size: 13px;
+      }
+
+      .app-name {
+        padding: 0 8px;
+        font-size: 20px;
+        font-weight: 600;
+        line-height: 35px;
+        letter-spacing: -0.01em;
+      }
+
+      .side-nav {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .side-nav a {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        padding: 4px 8px;
+      }
+
+      .side-nav a:hover {
+        background: var(--hover);
+      }
+
+      .side-nav a.selected,
+      .side-nav a.selected:hover {
+        background: var(--fg);
+        color: var(--bg);
+      }
+
+      .side-nav .count {
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .side-nav a.selected .count {
+        color: inherit;
+      }
+
+      .side-foot {
+        margin-top: auto;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 0 8px;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .side-foot button {
+        font-size: 13px;
+        color: var(--fg);
+      }
+
+      /* Phone and narrow windows: the sidebar becomes a top bar. */
+
+      .topbar {
+        display: none;
+      }
+
+      @media (max-width: 860px) {
+        .shell {
+          display: block;
+        }
+
+        .sidebar,
+        .rule-v {
+          display: none;
+        }
+
+        .topbar {
+          position: sticky;
+          top: 0;
+          z-index: 5;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 16px;
+          padding: 8px 16px;
+          background: var(--bg);
+          border-bottom: 1px solid var(--rule);
+          font-size: 13px;
+        }
+
+        .topbar .app-name {
+          padding: 0;
+        }
+
+        .topbar-links {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+        }
+      }
+
+      /* Page */
+
+      main {
+        padding: 24px 48px 0;
+        max-width: 1120px;
+      }
+
+      @media (max-width: 860px) {
+        main {
+          padding: 32px 16px 0;
+        }
+      }
+
+      section {
+        padding: 96px 0;
+        border-top: 1px solid var(--rule);
+      }
+
+      section.hero {
+        padding: 0 0 48px;
+        border-top: 0;
+      }
+
+      .label {
+        font-size: 11px;
+        font-weight: 500;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      /* Hero: the title row sits on the app name's line, like a board title. */
+
+      .hero-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--fg);
+        font-size: 13px;
+        line-height: 35px;
+      }
+
+      .hero h1 {
+        margin-top: 64px;
+        max-width: none;
+        text-wrap: balance;
+        font-size: clamp(44px, 7.4vw, 96px);
+        font-weight: 300;
+        line-height: 0.98;
+        letter-spacing: -0.03em;
+      }
+
+      .hero .lede {
+        margin-top: 32px;
+        max-width: 34em;
+        font-size: 19px;
+        line-height: 1.45;
+        letter-spacing: -0.005em;
+      }
+
+      .actions {
+        margin-top: 32px;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 24px;
+      }
+
+      .give {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        min-height: 48px;
+        padding: 12px 20px;
+        font-size: 15px;
+        font-weight: 500;
+        background: var(--fg);
+        color: var(--bg);
+        border-color: var(--fg);
+      }
+
+      .give:hover {
+        background: var(--bg);
+        color: var(--fg);
+      }
+
+
+      .text-link {
+        border-bottom: 1px solid var(--rule);
+        padding-bottom: 1px;
+      }
+
+      .text-link:hover {
+        border-color: var(--fg);
+      }
+
+      .note {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .facts {
+        margin-top: 48px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 24px;
+        font-size: 13px;
+      }
+
+      .facts li::before {
+        content: "— ";
+        color: var(--muted);
+      }
+
+      /* The app, drawn. Not a screenshot: references are other people's work,
+         so the tiles are compositions made for this page. */
+
+      .mock {
+        margin-top: 64px;
+        border: 1px solid var(--rule);
+        display: grid;
+        grid-template-columns: 184px 1px minmax(0, 1fr);
+        height: 600px;
+        overflow: hidden;
+        font-size: 12px;
+        line-height: 1.45;
+        user-select: none;
+      }
+
+      .mock .m-side {
+        padding: 16px 10px;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .mock .m-name {
+        padding: 0 6px;
+        font-size: 16px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 28px;
+      }
+
+      .mock .m-list {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+      }
+
+      .mock .m-list span {
+        display: flex;
+        justify-content: space-between;
+        padding: 3px 6px;
+      }
+
+      .mock .m-list i {
+        font-style: normal;
+        color: var(--muted);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .mock .m-list .d {
+        padding-left: 18px;
+      }
+
+      .mock .m-list .sel {
+        background: var(--fg);
+        color: var(--bg);
+      }
+
+      .mock .m-list .sel i {
+        color: inherit;
+      }
+
+      .mock .m-main {
+        padding: 16px 20px;
+        min-width: 0;
+      }
+
+      .mock .m-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--fg);
+      }
+
+      .mock .m-title {
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        line-height: 28px;
+        white-space: nowrap;
+      }
+
+      .mock .m-title .p {
+        color: var(--muted);
+        font-weight: 400;
+      }
+
+      .mock .m-title small {
+        margin-left: 4px;
+        font-size: 11px;
+        font-weight: 400;
+        letter-spacing: 0;
+        color: var(--muted);
+      }
+
+      .mock .m-tools {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .mock .m-tools b {
+        font-weight: 400;
+        border: 1px solid var(--rule);
+        padding: 2px 7px;
+      }
+
+      .mock .m-tools .agent {
+        border-color: var(--fg);
+      }
+
+      .mock .m-tools .on {
+        background: var(--fg);
+        color: var(--bg);
+        border-color: var(--fg);
+      }
+
+      .mock .m-brief {
+        display: flex;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--rule);
+        font-size: 11px;
+      }
+
+      .mock .m-grid {
+        margin-top: 16px;
+        columns: 3;
+        column-gap: 12px;
+      }
+
+      .tile {
+        position: relative;
+        break-inside: avoid;
+        margin-bottom: 12px;
+      }
+
+      .tile svg {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
+
+      .tile-key {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        font-size: 9px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        line-height: 1;
+        padding: 4px 5px;
+        background: #000;
+        color: #fff;
+      }
+
+      .tile-link {
+        border: 1px solid var(--rule);
+        padding: 12px;
+        min-height: 88px;
+      }
+
+      .tile-link .host {
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      .tile-link .url {
+        color: var(--muted);
+        word-break: break-all;
+      }
+
+      @media (max-width: 860px) {
+        .mock {
+          grid-template-columns: minmax(0, 1fr);
+          height: 460px;
+        }
+
+        .mock .m-side,
+        .mock .rule-v {
+          display: none;
+        }
+
+        .mock .m-main {
+          padding: 12px;
+        }
+
+        .mock .m-tools .hide-s {
+          display: none;
+        }
+
+        .mock .m-title {
+          font-size: 18px;
+        }
+
+        .mock .m-grid {
+          columns: 2;
+        }
+      }
+
+      /* Section heads */
+
+      .s-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+        gap: 24px 48px;
+        align-items: start;
+      }
+
+      .s-head h2 {
+        margin-top: 12px;
+        font-size: clamp(32px, 4.2vw, 48px);
+        font-weight: 600;
+        line-height: 1.02;
+        letter-spacing: -0.03em;
+        text-wrap: balance;
+      }
+
+      .s-head .desc {
+        padding-top: 28px;
+        max-width: 36em;
+        font-size: 17px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 860px) {
+        .s-head {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .s-head .desc {
+          padding-top: 0;
+        }
+      }
+
+      /* 01: steps, separated by hairlines like the grid's columns. */
+
+      .steps {
+        margin-top: 64px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 1px solid var(--fg);
+      }
+
+      .step {
+        padding: 16px 24px 0 0;
+      }
+
+      .step + .step {
+        padding-left: 24px;
+        border-left: 1px solid var(--rule);
+      }
+
+      .step h3 {
+        margin-top: 24px;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        line-height: 1.2;
+      }
+
+      .step p {
+        margin-top: 8px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        .steps {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .step,
+        .step + .step {
+          padding: 16px 0 24px;
+          border-left: 0;
+        }
+
+        .step + .step {
+          border-top: 1px solid var(--rule);
+        }
+      }
+
+      /* refs.yaml: what the agent reads. Read lines in ink, the rest muted. */
+
+      .yaml {
+        margin-top: 64px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 24px 48px;
+        align-items: end;
+      }
+
+      .file {
+        border: 1px solid var(--rule);
+      }
+
+      .file-name {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 16px;
+        border-bottom: 1px solid var(--rule);
+        font-size: 12px;
+      }
+
+      .file pre {
+        padding: 16px;
+        overflow-x: auto;
+        line-height: 1.6;
+        color: var(--muted);
+      }
+
+      .file pre b {
+        font-weight: 400;
+        color: var(--fg);
+      }
+
+      .yaml-caption {
+        font-size: 13px;
+        color: var(--muted);
+        max-width: 28em;
+      }
+
+      .yaml-caption b {
+        font-weight: 500;
+        color: var(--fg);
+      }
+
+      @media (max-width: 860px) {
+        .yaml {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      /* 02: features, a ruled grid. */
+
+      .features {
+        margin-top: 64px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        border-top: 1px solid var(--fg);
+      }
+
+      .features li {
+        padding: 16px 24px 32px 0;
+        border-bottom: 1px solid var(--rule);
+      }
+
+      .features li:not(:nth-child(3n + 1)) {
+        padding-left: 24px;
+        border-left: 1px solid var(--rule);
+      }
+
+      .features h3 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .features p {
+        margin-top: 4px;
+        color: var(--muted);
+      }
+
+      .features code {
+        color: var(--fg);
+      }
+
+      @media (max-width: 860px) {
+        .features {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .features li,
+        .features li:not(:nth-child(3n + 1)) {
+          padding: 16px 0 24px;
+          border-left: 0;
+        }
+      }
+
+      /* 03: install */
+
+      .install {
+        margin-top: 64px;
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 48px;
+        align-items: start;
+      }
+
+      .prompt pre {
+        white-space: pre-wrap;
+        color: var(--fg);
+        max-height: 420px;
+        overflow-y: auto;
+      }
+
+      .file-name button {
+        font-size: 12px;
+        padding: 2px 8px;
+      }
+
+      .file-name button[data-state="copied"] {
+        background: var(--fg);
+        color: var(--bg);
+        border-color: var(--fg);
+      }
+
+      .by-hand h3 {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .by-hand pre {
+        margin-top: 12px;
+        padding: 16px;
+        border: 1px solid var(--rule);
+        overflow-x: auto;
+        line-height: 1.7;
+      }
+
+      .by-hand p {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      .by-hand p code {
+        color: var(--fg);
+      }
+
+      .good-to-know {
+        margin-top: 48px;
+        padding-top: 16px;
+        border-top: 1px solid var(--rule);
+      }
+
+      .good-to-know ul {
+        margin-top: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+        color: var(--muted);
+      }
+
+      @media (max-width: 860px) {
+        .install {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+
+      footer {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 12px 24px;
+        padding: 24px 0 32px;
+        border-top: 1px solid var(--fg);
+        font-size: 13px;
+      }
+
+      footer nav {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 16px;
+      }
+
+      footer a:hover,
+      .topbar a:hover {
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+
+      .sr-only {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+
+    <header class="topbar">
+      <a class="app-name" href="#top">_refs</a>
+      <div class="topbar-links">
+        <a href="https://github.com/ccmdesign/refs">GitHub ↗</a>
+        <button type="button" class="theme-toggle">Dark</button>
+      </div>
+    </header>
+
+    <div class="shell">
+      <aside class="sidebar">
+        <a class="app-name" href="#top">_refs</a>
+        <nav class="side-nav" aria-label="On this page">
+          <a href="#top" data-section="top">Overview <span class="count">00</span></a>
+          <a href="#how" data-section="how">How it works <span class="count">01</span></a>
+          <a href="#what" data-section="what">What you get <span class="count">02</span></a>
+          <a href="#install" data-section="install">Install <span class="count">03</span></a>
+        </nav>
+        <nav class="side-nav" aria-label="Elsewhere">
+          <a href="https://github.com/ccmdesign/refs">GitHub <span class="count">↗</span></a>
+          <a href="https://github.com/ccmdesign/refs#readme">README <span class="count">↗</span></a>
+          <a href="https://github.com/ccmdesign/refs/blob/main/AGENTS.md">AGENTS.md <span class="count">↗</span></a>
+        </nav>
+        <div class="side-foot">
+          <button type="button" class="theme-toggle">Dark</button>
+          <span>© 2026 ccmlabs</span>
+        </div>
+      </aside>
+      <div class="rule-v"></div>
+
+      <main id="main">
+        <section class="hero" id="top" data-section="top">
+          <div class="hero-head">
+            <span class="label">Free · Open source · MIT</span>
+            <span class="muted">macOS, Linux, Windows</span>
+          </div>
+
+          <h1>Design references your agent can read.</h1>
+
+          <p class="lede">
+            _refs is a local library for design references. You collect images onto boards and
+            write down what each board is for. Your coding agent reads the same boards, as plain
+            files on your machine.
+          </p>
+
+          <div class="actions">
+            <button type="button" class="give" data-copy="install-prompt">
+              <span class="give-label">Give this to your agent</span>
+            </button>
+            <a class="text-link" href="https://github.com/ccmdesign/refs">View on GitHub ↗</a>
+          </div>
+          <p class="note">
+            Copies an install prompt. Paste it into Claude Code, Codex, Cursor or any coding agent.
+          </p>
+
+          <ul class="facts">
+            <li>Plain files on your machine</li>
+            <li>No account, no database</li>
+            <li>Tagging optional, off by default</li>
+          </ul>
+
+          <div class="mock" role="img" aria-label="The _refs app: a sidebar of boards, and the board editorial-grid open, with its brief and a grid of seven references.">
+            <div class="m-side">
+              <div class="m-name">_refs</div>
+              <div class="m-list">
+                <span>All refs <i>48</i></span>
+                <span>Unsorted <i>3</i></span>
+                <span>All boards <i>7</i></span>
+              </div>
+              <div class="m-list">
+                <span>acme-rebrand <i>12</i></span>
+                <span class="d sel">editorial-grid <i>7</i></span>
+                <span class="d">posters <i>9</i></span>
+                <span>packaging <i>14</i></span>
+                <span>type <i>21</i></span>
+                <span class="d">grotesks <i>8</i></span>
+                <span class="muted">New board</span>
+              </div>
+            </div>
+            <div class="rule-v"></div>
+            <div class="m-main">
+              <div class="m-head">
+                <div class="m-title"><span class="p">acme-rebrand /</span> editorial-grid<small>7</small></div>
+                <div class="m-tools">
+                  <b class="agent">Agent</b>
+                  <span class="muted hide-s">Columns</span>
+                  <b class="on hide-s">3</b><b class="hide-s">4</b><b class="hide-s">6</b>
+                  <b class="hide-s">Dark</b>
+                </div>
+              </div>
+              <div class="m-brief">
+                <span>+ Brief and tags</span>
+                <span class="muted">Grid and type hierarchy only. Ignore the colour.</span>
+              </div>
+              <div class="m-grid">
+                <div class="tile">
+                  <svg viewBox="0 0 300 400" aria-hidden="true">
+                    <rect width="300" height="400" fill="#f1efe9" />
+                    <g stroke="#dcd8cf" stroke-width="1">
+                      <path d="M25 0V400M75 0V400M125 0V400M175 0V400M225 0V400M275 0V400" />
+                    </g>
+                    <rect x="25" y="28" width="100" height="7" fill="#111" />
+                    <rect x="25" y="42" width="64" height="4" fill="#111" opacity=".45" />
+                    <rect x="25" y="51" width="80" height="4" fill="#111" opacity=".45" />
+                    <rect x="225" y="28" width="50" height="50" fill="#e2231a" />
+                    <text x="14" y="372" font-family="Switzer, system-ui, sans-serif" font-size="210" font-weight="600" letter-spacing="-16" fill="#111">06</text>
+                  </svg>
+                  <span class="tile-key">KEY</span>
+                </div>
+                <div class="tile tile-link">
+                  <div class="host">fontshare.com</div>
+                  <div class="url">https://www.fontshare.com/fonts/switzer</div>
+                </div>
+                <div class="tile">
+                  <svg viewBox="0 0 400 300" aria-hidden="true">
+                    <rect width="400" height="300" fill="#e8e8e3" />
+                    <text x="18" y="236" font-family="Switzer, system-ui, sans-serif" font-size="210" font-weight="600" letter-spacing="-10" fill="#111">Aa</text>
+                    <rect x="290" y="30" width="86" height="5" fill="#111" />
+                    <rect x="290" y="44" width="60" height="3" fill="#111" opacity=".4" />
+                    <rect x="290" y="52" width="72" height="3" fill="#111" opacity=".4" />
+                    <rect x="290" y="60" width="50" height="3" fill="#111" opacity=".4" />
+                    <path d="M24 264H376" stroke="#111" />
+                    <rect x="24" y="274" width="40" height="3" fill="#111" />
+                    <rect x="200" y="274" width="40" height="3" fill="#111" />
+                  </svg>
+                </div>
+                <div class="tile">
+                  <svg viewBox="0 0 300 300" aria-hidden="true">
+                    <rect width="300" height="300" fill="#111" />
+                    <circle cx="128" cy="150" r="100" fill="none" stroke="#fff" stroke-width="1.5" />
+                    <circle cx="172" cy="150" r="100" fill="none" stroke="#fff" stroke-width="1.5" />
+                    <circle cx="150" cy="150" r="16" fill="#e2231a" />
+                    <rect x="20" y="272" width="54" height="4" fill="#fff" />
+                    <rect x="230" y="272" width="50" height="4" fill="#fff" opacity=".5" />
+                  </svg>
+                </div>
+                <div class="tile">
+                  <svg viewBox="0 0 400 270" aria-hidden="true">
+                    <rect width="400" height="270" fill="#f4f4f0" />
+                    <rect x="20" y="20" width="170" height="230" fill="#1c1c1c" />
+                    <circle cx="105" cy="120" r="44" fill="#f4f4f0" />
+                    <rect x="210" y="20" width="160" height="14" fill="#111" />
+                    <rect x="210" y="40" width="120" height="14" fill="#111" />
+                    <g fill="#111" opacity=".35">
+                      <rect x="210" y="74" width="76" height="3" /><rect x="296" y="74" width="74" height="3" />
+                      <rect x="210" y="82" width="70" height="3" /><rect x="296" y="82" width="70" height="3" />
+                      <rect x="210" y="90" width="76" height="3" /><rect x="296" y="90" width="66" height="3" />
+                      <rect x="210" y="98" width="60" height="3" /><rect x="296" y="98" width="74" height="3" />
+                      <rect x="210" y="106" width="76" height="3" /><rect x="296" y="106" width="70" height="3" />
+                      <rect x="210" y="114" width="72" height="3" /><rect x="296" y="114" width="40" height="3" />
+                    </g>
+                    <text x="206" y="246" font-family="Switzer, system-ui, sans-serif" font-size="64" font-weight="600" letter-spacing="-3" fill="#e2231a">p. 14</text>
+                  </svg>
+                </div>
+                <div class="tile">
+                  <svg viewBox="0 0 300 400" aria-hidden="true">
+                    <defs>
+                      <pattern id="bands" width="56" height="56" patternUnits="userSpaceOnUse" patternTransform="rotate(-35)">
+                        <rect width="22" height="56" fill="#111" />
+                      </pattern>
+                    </defs>
+                    <rect width="300" height="400" fill="#e2231a" />
+                    <rect width="300" height="270" fill="url(#bands)" />
+                    <rect x="22" y="300" width="150" height="10" fill="#fff" />
+                    <rect x="22" y="318" width="110" height="10" fill="#fff" />
+                    <rect x="22" y="356" width="60" height="4" fill="#111" />
+                    <rect x="218" y="356" width="60" height="4" fill="#111" />
+                  </svg>
+                </div>
+                <div class="tile">
+                  <svg viewBox="0 0 300 300" aria-hidden="true">
+                    <rect width="300" height="300" fill="#f1efe9" />
+                    <g fill="#111">
+                      <circle cx="40" cy="40" r="9" /><circle cx="84" cy="40" r="3" /><circle cx="128" cy="40" r="3" /><circle cx="172" cy="40" r="3" /><circle cx="216" cy="40" r="3" /><circle cx="260" cy="40" r="3" />
+                      <circle cx="40" cy="84" r="3" /><circle cx="84" cy="84" r="9" /><circle cx="128" cy="84" r="3" /><circle cx="172" cy="84" r="3" /><circle cx="216" cy="84" r="3" /><circle cx="260" cy="84" r="3" />
+                      <circle cx="40" cy="128" r="3" /><circle cx="84" cy="128" r="3" /><circle cx="172" cy="128" r="3" /><circle cx="216" cy="128" r="3" /><circle cx="260" cy="128" r="3" />
+                      <circle cx="40" cy="172" r="3" /><circle cx="84" cy="172" r="3" /><circle cx="128" cy="172" r="3" /><circle cx="172" cy="172" r="9" /><circle cx="216" cy="172" r="3" /><circle cx="260" cy="172" r="3" />
+                      <circle cx="40" cy="216" r="3" /><circle cx="84" cy="216" r="3" /><circle cx="128" cy="216" r="3" /><circle cx="172" cy="216" r="3" /><circle cx="216" cy="216" r="9" /><circle cx="260" cy="216" r="3" />
+                      <circle cx="40" cy="260" r="3" /><circle cx="84" cy="260" r="3" /><circle cx="128" cy="260" r="3" /><circle cx="172" cy="260" r="3" /><circle cx="216" cy="260" r="3" /><circle cx="260" cy="260" r="9" />
+                    </g>
+                    <circle cx="128" cy="128" r="18" fill="#e2231a" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="how" data-section="how">
+          <div class="s-head">
+            <div>
+              <p class="label">01 — How it works</p>
+              <h2>Collect. Brief. Hand off.</h2>
+            </div>
+            <p class="desc">
+              A moodboard shows an agent what you like, but not why. On _refs every board carries a
+              short brief and every image a note: what it is for, what to take from it, what to
+              ignore. That is the part an agent can act on.
+            </p>
+          </div>
+
+          <ol class="steps">
+            <li class="step">
+              <p class="label">Step 1</p>
+              <h3>Collect</h3>
+              <p>
+                Drop or paste images and links into the app, or add them from the command line.
+                Each image is stored once, however many boards it sits on.
+              </p>
+            </li>
+            <li class="step">
+              <p class="label">Step 2</p>
+              <h3>Brief</h3>
+              <p>
+                Say what the board is for. Give any image a note for this board only: take the
+                grid, not the red. Mark the ones that matter most as key.
+              </p>
+            </li>
+            <li class="step">
+              <p class="label">Step 3</p>
+              <h3>Hand off</h3>
+              <p>
+                Press Agent on a board. It copies a prompt with the folder's path and how to read
+                it. Paste it into your agent, then say what you want designed.
+              </p>
+            </li>
+          </ol>
+
+          <div class="yaml">
+            <div class="file">
+              <div class="file-name">
+                <span>out/acme-rebrand/editorial-grid/refs.yaml</span>
+                <span class="muted">+ 7 images</span>
+              </div>
+              <pre><b>board: acme-rebrand/editorial-grid</b>
+<b>brief: Grid and type hierarchy only. Ignore the colour.</b>
+parent_briefs:
+  - board: acme-rebrand
+<b>    brief: The client is a bank. Sober.</b>
+refs:
+  - id: 3fa9c1d2e4b7
+    file: grid-poster-3fa9c1.jpg
+<b>    key: true</b>
+    note: Strong six-column rhythm.
+<b>    board_note: Take the column rhythm, not the red.</b>
+    tags: [poster, grid]
+    machine_tags: [typographic, two-colour, asymmetric]
+    source: https://example.com/poster</pre>
+            </div>
+            <p class="yaml-caption">
+              Every board is also written out as a folder: the images, plus one
+              <b>refs.yaml</b>. The agent reads the lines in ink first. The parent board's brief
+              comes along, key refs come first, and a note for this board outranks the general
+              one.
+            </p>
+          </div>
+        </section>
+
+        <section id="what" data-section="what">
+          <div class="s-head">
+            <div>
+              <p class="label">02 — What you get</p>
+              <h2>Plain files. Nothing to rent.</h2>
+            </div>
+            <p class="desc">
+              No account, no database, no server. Your library is a folder you can back up, sync or
+              put under version control, and it stays out of the repository: references are other
+              people's work.
+            </p>
+          </div>
+
+          <ul class="features">
+            <li>
+              <h3>Boards that nest</h3>
+              <p><code>acme-rebrand/editorial-grid</code> is a board inside a board. The agent gets the parent's brief too.</p>
+            </li>
+            <li>
+              <h3>One image, many boards</h3>
+              <p>Stored once and named by its content, with a different note on each board. Dropping it twice never duplicates it.</p>
+            </li>
+            <li>
+              <h3>A grid for looking</h3>
+              <p>Three, four or six columns, tag filters, light and dark, and a popover for notes.</p>
+            </li>
+            <li>
+              <h3>An Agent button</h3>
+              <p>On every board and every image. It copies a prompt with the right paths, ready to paste.</p>
+            </li>
+            <li>
+              <h3>Optional tagging</h3>
+              <p>A vision model you choose tags each image in the background: Ollama, LM Studio, oMLX, Claude, Codex or your own adapter. Off until you set it up.</p>
+            </li>
+            <li>
+              <h3>A CLI for agents</h3>
+              <p>Add, move, show and export from the command line, with <code>--json</code>, so an agent can file the references it finds while it works.</p>
+            </li>
+          </ul>
+        </section>
+
+        <section id="install" data-section="install">
+          <div class="s-head">
+            <div>
+              <p class="label">03 — Install</p>
+              <h2>Give this to your agent.</h2>
+            </div>
+            <p class="desc">
+              Paste this into Claude Code, Codex, Cursor or whichever agent you use. It clones the
+              repository, follows its AGENTS.md, and asks you before anything optional. You paste
+              one thing.
+            </p>
+          </div>
+
+          <div class="install">
+            <div class="file prompt">
+              <div class="file-name">
+                <span>Install prompt</span>
+                <button type="button" data-copy="install-prompt" aria-label="Copy the install prompt">Copy</button>
+              </div>
+              <pre id="install-prompt">Install _refs for me. It is a local library for design references: https://github.com/ccmdesign/refs
+
+1. Ask me which folder to put it in, unless I already said. Clone https://github.com/ccmdesign/refs there.
+2. Open AGENTS.md in the repository and follow it step by step. It is the source of truth: if anything here disagrees with it, AGENTS.md wins.
+3. It needs Node 22.18 or newer, and pnpm through `corepack enable`. If my Node is older, stop and tell me. Don't install Node yourself.
+4. Ask me before anything optional: image tagging (and which tagger) and the agent skill. Never choose a paid, hosted tagger unless I ask for one. Never invent an API key, write one into a file, or ask me to paste one into the chat.
+5. If a step fails, run `pnpm refs doctor` in the app folder, fix what it reports, and run it again.
+6. When it works, start the app with `pnpm dev` and tell me the URL (http://localhost:3210 unless REFS_PORT is set).</pre>
+            </div>
+
+            <div class="by-hand">
+              <h3>Or by hand</h3>
+              <pre>git clone https://github.com/ccmdesign/refs
+cd refs/app
+corepack enable
+pnpm install
+pnpm refs setup
+pnpm dev</pre>
+              <p>
+                Needs Node 22.18 or newer. Then open <code>localhost:3210</code>. If something is
+                off, <code>pnpm refs doctor</code> says what and how to fix it.
+              </p>
+
+              <div class="good-to-know">
+                <p class="label">Good to know</p>
+                <ul>
+                  <li>It runs on your own machine. There is no login, so don't expose its port to a network.</li>
+                  <li>Your library is ignored by git. Keep references private unless you have the right to share them.</li>
+                  <li>Not there yet: a browser extension, video and PDF references, and ordering refs by hand.</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <footer>
+          <span>© 2026 ccmlabs. Code under MIT, docs and interface under CC BY 4.0.</span>
+          <nav aria-label="Footer">
+            <a href="https://github.com/ccmdesign/refs">GitHub ↗</a>
+            <a href="https://github.com/ccmdesign/refs/blob/main/AGENTS.md">AGENTS.md ↗</a>
+            <a href="/llms.txt">llms.txt</a>
+            <a href="https://ccm-labs.ca">ccm-labs.ca ↗</a>
+          </nav>
+        </footer>
+      </main>
+    </div>
+
+    <p class="sr-only" aria-live="polite" id="copy-status"></p>
+
+    <script>
+      (function () {
+        var status = document.getElementById("copy-status");
+
+        function write(text) {
+          if (navigator.clipboard && window.isSecureContext) {
+            return navigator.clipboard.writeText(text).catch(fallback);
+          }
+          return fallback();
+          function fallback() {
+            var area = document.createElement("textarea");
+            area.value = text;
+            area.setAttribute("readonly", "");
+            area.style.position = "fixed";
+            area.style.opacity = "0";
+            document.body.appendChild(area);
+            area.select();
+            var ok = document.execCommand("copy");
+            area.remove();
+            return ok ? Promise.resolve() : Promise.reject(new Error("copy refused"));
+          }
+        }
+
+        // Every copy button: "Copied" for 1.8 s, like the app's Agent button.
+        document.querySelectorAll("[data-copy]").forEach(function (btn) {
+          var label = btn.querySelector(".give-label") || btn;
+          var idle = label.textContent;
+          var timer;
+          btn.addEventListener("click", function () {
+            var text = document.getElementById(btn.dataset.copy).textContent;
+            write(text).then(
+              function () {
+                btn.dataset.state = "copied";
+                label.textContent = "Copied. Paste it into your agent";
+                if (label === btn) label.textContent = "Copied";
+                status.textContent = "Install prompt copied.";
+              },
+              function () {
+                label.textContent = "Copy failed. Select the prompt below";
+                if (label === btn) label.textContent = "Copy failed";
+                status.textContent = "Copy failed.";
+              }
+            );
+            clearTimeout(timer);
+            timer = setTimeout(function () {
+              delete btn.dataset.state;
+              label.textContent = idle;
+            }, 1800);
+          });
+        });
+
+        // Theme: the app's Dark / Light toggle, remembered under the same key.
+        var root = document.documentElement;
+        var toggles = document.querySelectorAll(".theme-toggle");
+        function isDark() {
+          var t = root.dataset.theme;
+          if (t) return t === "dark";
+          return window.matchMedia("(prefers-color-scheme: dark)").matches;
+        }
+        function sync() {
+          toggles.forEach(function (b) {
+            b.textContent = isDark() ? "Light" : "Dark";
+          });
+        }
+        toggles.forEach(function (b) {
+          b.addEventListener("click", function () {
+            var next = isDark() ? "light" : "dark";
+            root.dataset.theme = next;
+            try {
+              localStorage.setItem("refs-theme", next);
+            } catch (e) {}
+            sync();
+          });
+        });
+        sync();
+
+        // The sidebar marks the section in view, like the current board.
+        // The current one is the last section whose top has passed 40% of the window.
+        var links = document.querySelectorAll(".sidebar a[data-section]");
+        var sections = Array.prototype.slice.call(document.querySelectorAll("section[data-section]"));
+        var current;
+        function mark() {
+          var line = window.innerHeight * 0.4;
+          var id = sections[0].dataset.section;
+          sections.forEach(function (s) {
+            if (s.getBoundingClientRect().top <= line) id = s.dataset.section;
+          });
+          if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2) {
+            id = sections[sections.length - 1].dataset.section;
+          }
+          if (id === current) return;
+          current = id;
+          links.forEach(function (a) {
+            a.classList.toggle("selected", a.dataset.section === id);
+            if (a.dataset.section === id) a.setAttribute("aria-current", "location");
+            else a.removeAttribute("aria-current");
+          });
+        }
+        window.addEventListener("scroll", mark, { passive: true });
+        window.addEventListener("resize", mark);
+        mark();
+      })();
+    </script>
+  </body>
+</html>

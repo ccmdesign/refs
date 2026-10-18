@@ -1,0 +1,11 @@
+# _refs
+
+> A free, open-source, local library for design references. Boards and briefs are plain files on the user's machine, written out per board as a folder of images plus one refs.yaml, ready for a coding agent to read.
+
+- Repository: https://github.com/ccmdesign/refs
+- Setup instructions for agents (source of truth): https://raw.githubusercontent.com/ccmdesign/refs/main/AGENTS.md
+- README: https://raw.githubusercontent.com/ccmdesign/refs/main/README.md
+- How an agent reads a board folder: https://raw.githubusercontent.com/ccmdesign/refs/main/app/skills/refs/SKILL.md
+- Licence: MIT (code), CC BY 4.0 (docs and interface)
+
+To install for a user: clone the repository into a folder they choose and follow AGENTS.md step by step. Ask before optional steps (image tagging, the agent skill). Never write an API key into a file.
