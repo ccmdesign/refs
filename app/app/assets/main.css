@@ -606,11 +606,34 @@ input.new-board:hover::placeholder {
   align-items: flex-start;
 }
 
-.tile img {
+.tile img,
+.tile-video {
   display: block;
   width: auto;
   max-width: 100%;
   height: auto;
+}
+
+/* Fills the tile when the ref's size is known, so swapping poster for video does not jump. */
+.tile-wrap[style] .tile-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.tile-video-badge {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  line-height: 1;
+  padding: 4px 5px;
+  background: var(--fg);
+  color: var(--bg);
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 
 .tile-via,
@@ -836,6 +859,65 @@ input.new-board:hover::placeholder {
 
   .ref-drawer > .ref-panel {
     transform: none;
+  }
+}
+
+/* A video has to stay watchable and its controls clickable, so its details open
+   only from the right-hand column, above the controls bar, behind a small tab. */
+.ref-overlay.is-video .ref-drawer {
+  left: auto;
+  width: min(420px, 100%);
+  bottom: 56px;
+  opacity: 1;
+  pointer-events: auto;
+  background: transparent;
+  transition: background-color 180ms ease-out;
+}
+
+.ref-overlay.is-video .ref-drawer > .ref-panel {
+  max-height: 100%;
+  overflow-y: auto;
+  opacity: 0;
+  transition: opacity 180ms ease-out, transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.ref-overlay.is-video .ref-drawer::before {
+  content: "Details";
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: var(--scrim);
+}
+
+.ref-overlay.is-video .ref-drawer:hover,
+.ref-overlay.is-video .ref-drawer:focus-within {
+  background: var(--scrim);
+}
+
+.ref-overlay.is-video .ref-drawer:hover::before,
+.ref-overlay.is-video .ref-drawer:focus-within::before {
+  display: none;
+}
+
+.ref-overlay.is-video .ref-drawer:hover > .ref-panel,
+.ref-overlay.is-video .ref-drawer:focus-within > .ref-panel {
+  opacity: 1;
+  transform: none;
+}
+
+@media (hover: none) {
+  .ref-overlay.is-video .ref-drawer {
+    background: var(--scrim);
+  }
+
+  .ref-overlay.is-video .ref-drawer::before {
+    display: none;
+  }
+
+  .ref-overlay.is-video .ref-drawer > .ref-panel {
+    opacity: 1;
   }
 }
 

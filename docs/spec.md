@@ -103,6 +103,44 @@ A URL that points to an image is downloaded and stored. Any other URL becomes a 
 - Default is the local Qwen model in oMLX. The first build step is a ten-image comparison between `Qwen3.8-27B-8bit` and `gemma-4-26B-A4B-it-MLX-8bit` to confirm the choice.
 - A ref can be re-tagged on demand.
 
+## Video refs (added 2026-10-19)
+
+Requested by Claudio: "create the spec and implement a quick feature to allow videos as refs". Kept small.
+
+**What counts.** `.mp4`, `.webm`, `.mov` and `.m4v` files, up to 200 MB each (`REFS_MAX_VIDEO_MB` changes the cap). Anything larger is refused with a message giving both sizes. YouTube or Vimeo pages stay link refs; audio and PDF are out of scope.
+
+**Intake.** The same three ways in as images: drop or paste in the app, `refs add <file|url>`, or an agent using the CLI. A URL whose content type is `video/*` is downloaded and stored. Videos are stored once, named by content hash, so adding the same file twice adds the existing ref to the board.
+
+**Ref file.** A video ref is an image ref with three extra fields:
+
+```yaml
+id: 9c2e4f1a7b30
+kind: video                          # absent on images and links
+file: files/9c/9c2e4f1a7b30.mp4
+poster: files/9c/9c2e4f1a7b30.poster.jpg   # one frame, when ffmpeg is available
+duration: 12.4                       # seconds
+width: 1920
+height: 1080
+```
+
+**Poster frame.** ffmpeg and ffprobe are optional. When they are on the PATH (or named by `REFS_FFMPEG` and `REFS_FFPROBE`), intake reads the size and duration and saves one frame, about a second in, as a JPEG next to the video. Without them the video is still stored and plays; the grid shows its first frame through the browser, and it is not tagged. A poster that is missing is made the next time it is asked for, so installing ffmpeg later fixes old refs. `refs doctor` reports ffmpeg as a warning, never a failure.
+
+**Grid and popover.** A video tile shows the poster with a small duration badge. On hover it plays muted and looped, unless the visitor prefers reduced motion. The popover plays the video with controls. The file route answers HTTP range requests so the browser can seek.
+
+**Tagging.** The tagger is given the poster frame and told it is a frame from a video. No new model calls: one frame per video, through whatever tagger is configured, and none when tagging is off or there is no poster.
+
+**Output for agents.** The board folder gets the video file and, beside it, its poster (`<name>.poster.jpg`). `refs.yaml` marks the entry so an agent knows what it is reading:
+
+```yaml
+  - id: 9c2e4f1a7b30
+    type: video
+    file: hover-study-9c2e4f.mp4
+    poster: hover-study-9c2e4f.poster.jpg
+    duration: 12.4
+```
+
+Agents that cannot watch video read the poster, the notes and the description.
+
 ## App
 
 Nuxt, running locally.
@@ -119,7 +157,7 @@ One `refs` skill, kept in the app repo and shared by Claude, Codex and Muse. It 
 
 ## Not in the first version
 
-Chrome extension, video and PDF refs, hand ordering, a contact-sheet image per board, any hosted or multi-user mode, Paperclip integration.
+Chrome extension, PDF refs, hand ordering, a contact-sheet image per board, any hosted or multi-user mode, Paperclip integration.
 
 ## Build order
 

@@ -134,6 +134,20 @@ export function updateRef(lib: string, id: string, input: UpdateRefInput): RefDa
   return ref;
 }
 
+/** Size, duration and poster of a video ref, as read from the file. Not exposed to the API. */
+export function setVideoMeta(
+  lib: string,
+  id: string,
+  meta: { poster?: string; width?: number; height?: number; duration?: number },
+): RefData {
+  const ref = getRef(lib, id);
+  for (const key of ["poster", "width", "height", "duration"] as const) {
+    if (meta[key] !== undefined) (ref as Record<string, unknown>)[key] = meta[key];
+  }
+  atomicWriteSync(refYamlPath(lib, id), stringifyRef(ref));
+  return ref;
+}
+
 export async function deleteRef(lib: string, id: string): Promise<void> {
   const ref = getRef(lib, id);
   const trash = trashDir(lib);
@@ -143,10 +157,11 @@ export async function deleteRef(lib: string, id: string): Promise<void> {
   const trashRef = join(trash, `${id}.yaml`);
   if (existsSync(refPath)) renameSync(refPath, trashRef);
 
-  if (ref.file) {
-    const imgPath = join(lib, ref.file);
-    if (existsSync(imgPath)) {
-      renameSync(imgPath, join(trash, basename(imgPath)));
+  for (const rel of [ref.file, ref.poster]) {
+    if (!rel) continue;
+    const abs = join(lib, rel);
+    if (existsSync(abs)) {
+      renameSync(abs, join(trash, basename(abs)));
     }
   }
 

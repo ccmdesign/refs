@@ -2,6 +2,7 @@ import { createReadStream, existsSync, mkdirSync, writeFileSync } from "node:fs"
 import { join } from "node:path";
 import sharp from "sharp";
 import { getRef } from "~~/core/ref.ts";
+import { stillImagePath } from "~~/core/video.ts";
 import { assertRefId } from "../../utils/validate.ts";
 import { library } from "../../utils/lib.ts";
 
@@ -23,12 +24,13 @@ export default defineEventHandler(async (event) => {
   if (!ref.file) {
     throw createError({ statusCode: 404, statusMessage: "Not an image ref" });
   }
-  const abs = join(lib, ref.file);
-  if (!existsSync(abs)) {
-    throw createError({ statusCode: 404, statusMessage: "File not found" });
+  // For a video this is its poster frame, made now if it is missing and ffmpeg is there.
+  const abs = stillImagePath(lib, ref);
+  if (!abs) {
+    throw createError({ statusCode: 404, statusMessage: "No still image" });
   }
 
-  const ext = ref.file.split(".").pop()?.toLowerCase() ?? "";
+  const ext = abs.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "svg" || ext === "gif") {
     const mime = ext === "svg" ? "image/svg+xml" : "image/gif";
     setHeader(event, "content-type", mime);

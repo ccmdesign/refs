@@ -4,7 +4,9 @@ import type { BoardData, RefData } from "./types.ts";
 
 const REF_KEY_ORDER = [
   "id",
+  "kind",
   "file",
+  "poster",
   "url",
   "title",
   "source",
@@ -13,6 +15,7 @@ const REF_KEY_ORDER = [
   "auto",
   "width",
   "height",
+  "duration",
   "added",
 ] as const;
 

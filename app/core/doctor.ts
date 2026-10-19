@@ -8,6 +8,7 @@ import {
   type OutputMethod,
 } from "./output.ts";
 import { checkTagger } from "./tagger.ts";
+import { checkFfmpeg } from "./video.ts";
 
 export type Check = {
   id: string;
@@ -191,6 +192,18 @@ export async function runDoctor(
     const msg = err instanceof Error ? err.message : String(err);
     checks.push({ id: "tagger", status: "warn", detail: msg });
   }
+
+  const ffmpeg = checkFfmpeg();
+  checks.push(
+    ffmpeg.ok
+      ? { id: "ffmpeg", status: "ok", detail: ffmpeg.detail }
+      : {
+          id: "ffmpeg",
+          status: "warn",
+          detail: `${ffmpeg.detail}: videos get no poster frame and are not tagged`,
+          fix: "Optional: install ffmpeg (https://ffmpeg.org/download.html), which includes ffprobe",
+        },
+  );
 
   const port =
     opts?.port ?? (Number(process.env.REFS_PORT) || 3210);

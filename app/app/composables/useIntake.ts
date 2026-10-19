@@ -47,6 +47,15 @@ export function useIntake(
     return res;
   }
 
+  // Shows why an add failed (wrong type, video over the size cap) instead of failing silently.
+  async function guarded(fn: () => Promise<unknown>) {
+    try {
+      await fn();
+    } catch (err: any) {
+      flash(err?.data?.statusMessage || err?.statusMessage || "Could not add");
+    }
+  }
+
   function onDragEnter(e: DragEvent) {
     if (e.dataTransfer?.types.includes("Files")) dragging.value = true;
   }
@@ -65,11 +74,12 @@ export function useIntake(
     const url = dt.getData("text/uri-list") || dt.getData("text/plain");
     if (url && url.trim().startsWith(window.location.origin)) return;
     if (url && /^https?:\/\//i.test(url.trim())) {
-      await submitUrl(url.trim());
+      await guarded(() => submitUrl(url.trim()));
       return;
     }
     if (dt.files?.length) {
-      await submitFiles(dt.files);
+      const files = [...dt.files];
+      await guarded(() => submitFiles(files));
     }
   }
 
@@ -79,11 +89,11 @@ export function useIntake(
     const items = e.clipboardData?.items;
     if (!items) return;
     for (const item of items) {
-      if (item.type.startsWith("image/")) {
+      if (item.type.startsWith("image/") || item.type.startsWith("video/")) {
         const file = item.getAsFile();
         if (file) {
           e.preventDefault();
-          await submitFiles([file]);
+          await guarded(() => submitFiles([file]));
           return;
         }
       }
@@ -91,7 +101,7 @@ export function useIntake(
     const text = e.clipboardData?.getData("text")?.trim();
     if (text && /^https?:\/\//i.test(text)) {
       e.preventDefault();
-      await submitUrl(text);
+      await guarded(() => submitUrl(text));
     }
   }
 
