@@ -7,7 +7,13 @@ export type RefAuto = {
 
 export type RefData = {
   id: string;
+  /** Absent on images and links. */
+  kind?: "video";
   file?: string;
+  /** Video refs only: one frame as a JPEG, relative to the library. */
+  poster?: string;
+  /** Video refs only, in seconds. */
+  duration?: number;
   url?: string;
   title?: string;
   source?: string;
@@ -38,7 +44,10 @@ export type ParentBriefEntry = {
 
 export type OutputRefEntry = {
   id: string;
+  type?: "video";
   file?: string;
+  poster?: string;
+  duration?: number;
   url?: string;
   key?: boolean;
   note?: string;
@@ -66,3 +75,5 @@ export const IMAGE_EXTENSIONS = new Set([
   "avif",
   "svg",
 ]);
+
+export const VIDEO_EXTENSIONS = new Set(["mp4", "webm", "mov", "m4v"]);

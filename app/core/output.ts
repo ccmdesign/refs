@@ -238,6 +238,10 @@ function outputFileName(ref: ReturnType<typeof getRef>, id: string): string {
   return `${slugify(title)}-${id.slice(0, 6)}.${ext}`;
 }
 
+function posterFileName(ref: ReturnType<typeof getRef>, id: string): string {
+  return outputFileName(ref, id).replace(/\.[^.]+$/, ".poster.jpg");
+}
+
 function buildOutputYaml(
   lib: string,
   boardPath: string,
@@ -249,8 +253,13 @@ function buildOutputYaml(
   for (const entry of sortBoardRefs(board)) {
     const ref = getRef(lib, entry.id);
     const out: OutputRefEntry = { id: entry.id };
+    if (ref.kind === "video") out.type = "video";
     if (ref.file) {
       out.file = outputFileName(ref, entry.id);
+      if (ref.poster && existsSync(resolve(lib, ref.poster))) {
+        out.poster = posterFileName(ref, entry.id);
+      }
+      if (ref.duration) out.duration = ref.duration;
     } else if (ref.url) {
       out.url = ref.url;
     }
@@ -291,6 +300,15 @@ export async function rebuildBoardOutput(lib: string, boardPath: string): Promis
     const linkName = outputFileName(ref, entry.id);
     const abs = resolve(lib, ref.file);
     desiredLinks.set(linkName, { rel: relative(outDir, abs), abs });
+    if (ref.poster) {
+      const posterAbs = resolve(lib, ref.poster);
+      if (existsSync(posterAbs)) {
+        desiredLinks.set(posterFileName(ref, entry.id), {
+          rel: relative(outDir, posterAbs),
+          abs: posterAbs,
+        });
+      }
+    }
   }
 
   const existing = existsSync(outDir)

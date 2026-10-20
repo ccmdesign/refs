@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { mkdir } from "node:fs/promises";
 import { basename, dirname, extname } from "node:path";
 import sharp from "sharp";
@@ -16,6 +16,7 @@ import { atomicWriteSync } from "./util.ts";
 import { stringifyRef } from "./yaml.ts";
 import { addRefToBoard } from "./board.ts";
 import { rebuildBoardOutput } from "./output.ts";
+import { assertVideoSize, ensurePoster, isVideoExtension, probeVideo } from "./video.ts";
 
 export type AddResult = {
   id: string;
@@ -80,6 +81,70 @@ function parseTagsCsv(tags?: string): string[] | undefined {
   return list.length ? list : undefined;
 }
 
+type StoreMeta = { title: string; source?: string };
+
+/** Stores an image or video by content hash and writes its ref file; an existing ref is reused. */
+async function storeMedia(
+  lib: string,
+  buf: Buffer,
+  ext: string,
+  meta: StoreMeta,
+  options: AddOptions,
+): Promise<{ id: string; duplicate: boolean; ref: RefData }> {
+  const video = isVideoExtension(ext);
+  if (video) assertVideoSize(buf.length);
+  const id = refIdFromBuffer(buf);
+  const refPath = refYamlPath(lib, id);
+  if (existsSync(refPath)) {
+    const { readRefFile } = await import("./yaml.ts");
+    return { id, duplicate: true, ref: readRefFile(refPath) };
+  }
+  const relFile = imageStorageRelative(id, ext);
+  const absFile = imageStoragePath(lib, id, ext);
+  await mkdir(dirname(absFile), { recursive: true });
+  writeFileSync(absFile, buf);
+  let ref: RefData = {
+    id,
+    file: relFile,
+    title: meta.title,
+    source: meta.source,
+    note: options.note,
+    tags: options.tags,
+    added: todayDate(),
+  };
+  if (video) {
+    const info = await probeVideo(absFile);
+    ref = { ...ref, kind: "video", width: info.width, height: info.height, duration: info.duration };
+  } else {
+    const dims = await imageDimensions(buf, ext);
+    ref.width = dims.width || undefined;
+    ref.height = dims.height || undefined;
+  }
+  if (!ref.source) delete ref.source;
+  if (!ref.note) delete ref.note;
+  atomicWriteSync(refPath, stringifyRef(ref));
+  if (video) await ensurePoster(lib, ref);
+  const { readRefFile } = await import("./yaml.ts");
+  return { id, duplicate: false, ref: readRefFile(refPath) };
+}
+
+async function placeOnBoard(lib: string, id: string, options: AddOptions): Promise<void> {
+  if (!options.board) return;
+  addRefToBoard(lib, options.board, id, {
+    note: options.boardNote,
+    key: options.key,
+  });
+  await rebuildBoardOutput(lib, options.board);
+}
+
+function assertSupportedFile(ext: string): void {
+  if (!IMAGE_EXTENSIONS.has(ext) && !isVideoExtension(ext)) {
+    throw new Error(
+      `Unsupported file type: ${ext || "(none)"}. Use an image or a video (mp4, webm, mov, m4v).`,
+    );
+  }
+}
+
 export async function addFromBuffer(
   lib: string,
   buf: Buffer,
@@ -88,50 +153,16 @@ export async function addFromBuffer(
 ): Promise<AddResult> {
   ensureLibraryDirs(lib);
   const ext = extensionFromPath(filename);
-  if (!IMAGE_EXTENSIONS.has(ext)) {
-    throw new Error(`Unsupported image type: ${ext || "(none)"}`);
-  }
-  const id = refIdFromBuffer(buf);
-  const refPath = refYamlPath(lib, id);
-  let duplicate = false;
-  let ref: RefData;
-
-  if (existsSync(refPath)) {
-    duplicate = true;
-    const { readRefFile } = await import("./yaml.ts");
-    ref = readRefFile(refPath);
-  } else {
-    const relFile = imageStorageRelative(id, ext);
-    const absFile = imageStoragePath(lib, id, ext);
-    await mkdir(dirname(absFile), { recursive: true });
-    writeFileSync(absFile, buf);
-    const dims = await imageDimensions(buf, ext);
-    const base = basename(filename, extname(filename));
-    ref = {
-      id,
-      file: relFile,
-      title: options.title || base,
-      source: options.source,
-      note: options.note,
-      tags: options.tags,
-      width: dims.width || undefined,
-      height: dims.height || undefined,
-      added: todayDate(),
-    };
-    if (!ref.source) delete ref.source;
-    if (!ref.note) delete ref.note;
-    atomicWriteSync(refPath, stringifyRef(ref));
-  }
-
-  if (options.board) {
-    addRefToBoard(lib, options.board, id, {
-      note: options.boardNote,
-      key: options.key,
-    });
-    await rebuildBoardOutput(lib, options.board);
-  }
-
-  return { id, duplicate, ref };
+  assertSupportedFile(ext);
+  const result = await storeMedia(
+    lib,
+    buf,
+    ext,
+    { title: options.title || basename(filename, extname(filename)), source: options.source },
+    options,
+  );
+  await placeOnBoard(lib, result.id, options);
+  return result;
 }
 
 export async function addFromFile(
@@ -140,51 +171,20 @@ export async function addFromFile(
   options: AddOptions = {},
 ): Promise<AddResult> {
   ensureLibraryDirs(lib);
-  const buf = readFileSync(filePath);
   const ext = extensionFromPath(filePath);
-  if (!IMAGE_EXTENSIONS.has(ext)) {
-    throw new Error(`Unsupported image type: ${ext || "(none)"}`);
-  }
-  const id = refIdFromBuffer(buf);
-  const refPath = refYamlPath(lib, id);
-  let duplicate = false;
-  let ref: RefData;
-
-  if (existsSync(refPath)) {
-    duplicate = true;
-    const { readRefFile } = await import("./yaml.ts");
-    ref = readRefFile(refPath);
-  } else {
-    const relFile = imageStorageRelative(id, ext);
-    const absFile = imageStoragePath(lib, id, ext);
-    await mkdir(dirname(absFile), { recursive: true });
-    writeFileSync(absFile, buf);
-    const dims = await imageDimensions(buf, ext);
-    ref = {
-      id,
-      file: relFile,
-      title: options.title || basename(filePath, extname(filePath)),
-      source: options.source,
-      note: options.note,
-      tags: options.tags,
-      width: dims.width || undefined,
-      height: dims.height || undefined,
-      added: todayDate(),
-    };
-    if (!ref.source) delete ref.source;
-    if (!ref.note) delete ref.note;
-    atomicWriteSync(refPath, stringifyRef(ref));
-  }
-
-  if (options.board) {
-    addRefToBoard(lib, options.board, id, {
-      note: options.boardNote,
-      key: options.key,
-    });
-    await rebuildBoardOutput(lib, options.board);
-  }
-
-  return { id, duplicate, ref };
+  assertSupportedFile(ext);
+  // Check the size before reading a large video into memory.
+  if (isVideoExtension(ext)) assertVideoSize(statSync(filePath).size);
+  const buf = readFileSync(filePath);
+  const result = await storeMedia(
+    lib,
+    buf,
+    ext,
+    { title: options.title || basename(filePath, extname(filePath)), source: options.source },
+    options,
+  );
+  await placeOnBoard(lib, result.id, options);
+  return result;
 }
 
 function contentTypeIsImage(ct: string | null): boolean {
@@ -204,50 +204,37 @@ export async function addFromUrl(
   if (!res.ok) throw new Error(`Failed to fetch URL: ${res.status}`);
 
   const ct = res.headers.get("content-type");
+  const length = Number(res.headers.get("content-length"));
+  if (videoExtFromContentType(ct) && length > 0) assertVideoSize(length);
   const buf = Buffer.from(await res.arrayBuffer());
+
+  const videoExt = videoExtFromContentType(ct);
+  if (videoExt) {
+    const result = await storeMedia(
+      lib,
+      buf,
+      videoExt,
+      { title: options.title ?? titleFromUrl(url), source: options.source ?? url },
+      options,
+    );
+    await placeOnBoard(lib, result.id, options);
+    return result;
+  }
 
   if (contentTypeIsImage(ct) || looksLikeImage(buf)) {
     const ext = extFromContentType(ct) || extFromBuffer(buf) || "jpg";
     if (!IMAGE_EXTENSIONS.has(ext)) {
       throw new Error(`Unsupported image type from URL: ${ext}`);
     }
-    const id = refIdFromBuffer(buf);
-    const refPath = refYamlPath(lib, id);
-    let duplicate = false;
-    let ref: RefData;
-
-    if (existsSync(refPath)) {
-      duplicate = true;
-      const { readRefFile } = await import("./yaml.ts");
-      ref = readRefFile(refPath);
-    } else {
-      const relFile = imageStorageRelative(id, ext);
-      const absFile = imageStoragePath(lib, id, ext);
-      await mkdir(dirname(absFile), { recursive: true });
-      writeFileSync(absFile, buf);
-      const dims = await imageDimensions(buf, ext);
-      ref = {
-        id,
-        file: relFile,
-        title: options.title ?? titleFromUrl(url),
-        source: options.source ?? url,
-        note: options.note,
-        tags: options.tags,
-        width: dims.width || undefined,
-        height: dims.height || undefined,
-        added: todayDate(),
-      };
-      atomicWriteSync(refPath, stringifyRef(ref));
-    }
-
-    if (options.board) {
-      addRefToBoard(lib, options.board, id, {
-        note: options.boardNote,
-        key: options.key,
-      });
-      await rebuildBoardOutput(lib, options.board);
-    }
-    return { id, duplicate, ref };
+    const result = await storeMedia(
+      lib,
+      buf,
+      ext,
+      { title: options.title ?? titleFromUrl(url), source: options.source ?? url },
+      options,
+    );
+    await placeOnBoard(lib, result.id, options);
+    return result;
   }
 
   const id = refIdFromString(url);
@@ -282,6 +269,17 @@ export async function addFromUrl(
   }
 
   return { id, duplicate, ref };
+}
+
+function videoExtFromContentType(ct: string | null): string | null {
+  if (!ct) return null;
+  const map: Record<string, string> = {
+    "video/mp4": "mp4",
+    "video/webm": "webm",
+    "video/quicktime": "mov",
+    "video/x-m4v": "m4v",
+  };
+  return map[ct.split(";")[0].trim().toLowerCase()] ?? null;
 }
 
 function looksLikeImage(buf: Buffer): boolean {

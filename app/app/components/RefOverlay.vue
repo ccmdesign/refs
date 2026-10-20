@@ -177,15 +177,36 @@ function onKey(e: KeyboardEvent) {
   if (e.key === "ArrowRight") step(1);
 }
 
+const reducedMotion = import.meta.client
+  ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  : false;
+
 onMounted(() => window.addEventListener("keydown", onKey));
 onUnmounted(() => window.removeEventListener("keydown", onKey));
 </script>
 
 <template>
   <div v-if="current" class="ref-backdrop" @click.self="emit('close')">
-  <div class="ref-overlay" :class="{ 'is-link': !current.ref.file }" :style="frameStyle">
+  <div
+    class="ref-overlay"
+    :class="{ 'is-link': !current.ref.file, 'is-video': current.ref.kind === 'video' }"
+    :style="frameStyle"
+  >
+    <video
+      v-if="current.ref.kind === 'video' && current.ref.file"
+      :key="current.ref.id"
+      class="ref-image"
+      :src="`/file/${current.ref.id}`"
+      :poster="`/thumb/${current.ref.id}?w=1600`"
+      :autoplay="!reducedMotion"
+      controls
+      muted
+      loop
+      playsinline
+      :aria-label="current.ref.title || current.ref.id"
+    />
     <img
-      v-if="current.ref.file"
+      v-else-if="current.ref.file"
       class="ref-image"
       :src="`/file/${current.ref.id}`"
       :alt="current.ref.title || current.ref.id"

@@ -15,6 +15,7 @@ import { noneAdapterOffMessage } from "./tagger/adapters/none.ts";
 import { prepareFileJpeg, prepareTaggerJpeg } from "./tagger/image.ts";
 import { parseTaggerResponse } from "./tagger/parse.ts";
 import { buildTagPrompt, readVocabulary } from "./tagger/vocabulary.ts";
+import { checkFfmpeg, isVideoRef, stillImagePath } from "./video.ts";
 const LOCK_STALE_MS = 2 * 60 * 1000;
 
 let injectedAdapter: TaggerAdapter | null = null;
@@ -104,7 +105,20 @@ function releaseLock(lib: string): void {
 
 function refHasLocalImage(lib: string, ref: RefData): boolean {
   if (!ref.file) return false;
+  if (isVideoRef(ref)) {
+    // A video is tagged from its poster frame; without ffmpeg there is none.
+    if (ref.poster && existsSync(join(lib, ref.poster))) return true;
+    return ffmpegAvailable();
+  }
   return existsSync(join(lib, ref.file));
+}
+
+let ffmpegCache: { at: number; ok: boolean } | undefined;
+function ffmpegAvailable(): boolean {
+  if (!ffmpegCache || Date.now() - ffmpegCache.at > 60_000) {
+    ffmpegCache = { at: Date.now(), ok: checkFfmpeg().ok };
+  }
+  return ffmpegCache.ok;
 }
 
 function isUntaggedCandidate(
@@ -159,13 +173,17 @@ async function tagRefCore(
   if (!ref.file) {
     throw new Error(`Ref ${id} has no local image file`);
   }
-  const imagePath = join(lib, ref.file);
-  if (!existsSync(imagePath)) {
-    throw new Error(`Image file missing for ref ${id}`);
+  const imagePath = await stillImagePath(lib, ref);
+  if (!imagePath) {
+    throw new Error(
+      isVideoRef(ref)
+        ? `No poster frame for video ref ${id}; install ffmpeg to tag videos`
+        : `Image file missing for ref ${id}`,
+    );
   }
 
   const vocabulary = readVocabulary(lib);
-  const prompt = buildTagPrompt(vocabulary);
+  const prompt = buildTagPrompt(vocabulary, { videoFrame: isVideoRef(ref) });
   const jpegPath = await prepareTaggerJpeg(lib, id, imagePath);
   const model = cfg.model;
   const raw = await adapter.describe({ prompt, imagePath: jpegPath, model });

@@ -11,7 +11,7 @@ A local library of design references. People curate it in a web app; agents read
 - Library: `$REFS_LIBRARY` if set, otherwise `$REFS_HOME/library`.
 - CLI: `node "$REFS_HOME/app/bin/refs.ts" <command>`, called `refs` below. It works whether or not the app is running.
 
-A **ref** is one image or one link, with a general note and tags. A **board** is a named collection of refs with a brief; boards nest (`acme-rebrand/editorial-grid`). One ref can sit on several boards, with a separate note on each.
+A **ref** is one image, one video or one link, with a general note and tags. A **board** is a named collection of refs with a brief; boards nest (`acme-rebrand/editorial-grid`). One ref can sit on several boards, with a separate note on each.
 
 ## Reading a board
 
@@ -26,6 +26,7 @@ A **ref** is one image or one link, with a general note and tags. A **board** is
    - `board_note`: what to take from it for this board. This outranks `note`.
    - `tags` (set by a person) and `machine_tags` plus `description` (set by a model; treat as hints).
    - `source` or `url`: where it came from.
+   - `type: video` on a video ref. Its `file` is the video; `poster` is one frame of it as a JPEG, and `duration` is in seconds. If you cannot watch video, look at the poster and read the notes; say so rather than guessing at the motion.
 
 Treat notes as direction. A ref is there for the reason its note gives, not as something to copy whole. If a board note says "grid only, ignore colour", ignore the colour.
 
@@ -43,7 +44,8 @@ refs add <file|url>... --board <board> [--note <text>] [--board-note <text>] [--
 
 - Always give `--source` when the image came from a web page: the page URL, not the image URL.
 - Write a `--board-note` saying what is worth taking from the ref for this board. A ref with no note is of little use to the next agent.
-- Adding an image that is already in the library puts the existing ref on the board; nothing is stored twice.
+- Videos (`.mp4`, `.webm`, `.mov`, `.m4v`, up to 200 MB) are added the same way as images.
+- Adding a file that is already in the library puts the existing ref on the board; nothing is stored twice.
 - A URL that is not an image becomes a link-only ref.
 - Machine tags are added in the background after the add. Do not wait for them.
 - Use `--key` sparingly. Do not mark refs as key unless asked to.

@@ -51,6 +51,22 @@ const viaBoardLabel = computed(() => {
   if (via.startsWith(prefix)) return via.slice(prefix.length);
   return via;
 });
+
+const isVideo = computed(() => props.item.ref.kind === "video");
+// No poster (ffmpeg missing): the video element shows its own first frame instead.
+const posterFailed = ref(false);
+const hovering = ref(false);
+const reducedMotion = import.meta.client
+  ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  : false;
+const playing = computed(() => isVideo.value && hovering.value && !reducedMotion);
+
+const durationLabel = computed(() => {
+  const d = props.item.ref.duration;
+  if (!d) return "Video";
+  const s = Math.round(d);
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+});
 </script>
 
 <template>
@@ -73,14 +89,38 @@ const viaBoardLabel = computed(() => {
       <div class="host">{{ host }}</div>
       <div class="url">{{ item.ref.url }}</div>
     </div>
-    <div v-else class="tile-wrap" :style="aspectStyle">
+    <div
+      v-else
+      class="tile-wrap"
+      :class="{ 'tile-pending': isVideo && !item.ref.width }"
+      :style="aspectStyle"
+      @pointerenter="hovering = true"
+      @pointerleave="hovering = false"
+    >
       <span v-if="item.key" class="tile-key">KEY</span>
+      <video
+        v-if="isVideo && (playing || posterFailed)"
+        class="tile-video"
+        :src="playing ? `/file/${item.ref.id}` : `/file/${item.ref.id}#t=0.1`"
+        :autoplay="playing"
+        :preload="playing ? 'auto' : 'metadata'"
+        muted
+        loop
+        playsinline
+        disablepictureinpicture
+        draggable="false"
+        :aria-label="item.ref.title || item.ref.id"
+      />
       <img
+        v-if="!isVideo || !posterFailed"
+        v-show="!playing"
         :src="`/thumb/${item.ref.id}?w=${thumbW}`"
         :alt="item.ref.title || item.ref.id"
         loading="lazy"
         draggable="false"
+        @error="posterFailed = isVideo"
       />
+      <span v-if="isVideo" class="tile-video-badge">▶ {{ durationLabel }}</span>
     </div>
     <p v-if="viaBoardLabel" class="tile-via muted">{{ viaBoardLabel }}</p>
     <p v-if="item.boardNote || item.ref.note" class="tile-note">

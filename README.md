@@ -14,6 +14,7 @@ Everything is plain files on your own machine. There is no account, no database 
 - **Machine tags.** A vision model tags and describes each image in the background. Its tags are kept apart from yours and never overwrite them.
 - **Agent output.** Every board is generated into `library/out/<board>/`, with key refs first and parent briefs included.
 - **Hand-off button.** "Agent" on a board or a ref copies a ready-made prompt, with the right paths in it, to paste into your agent.
+- **Video refs.** `.mp4`, `.webm`, `.mov` and `.m4v`, up to 200 MB. They play on hover in the grid and with controls in the popover. With [ffmpeg](https://ffmpeg.org/download.html) installed (optional), each gets a poster frame, its size and duration, and machine tags from that frame.
 - **Three ways in.** Drop or paste into the app, use the CLI, or let an agent use the CLI.
 
 ## Quick start
@@ -179,6 +180,7 @@ pnpm refs tag --check --json
 
 - **Local only.** The app has no login and will fetch any URL you give it. Run it on your own machine and do not expose its port to a network.
 - **Your library is not part of this repository.** `library/` is ignored by git on purpose. References are other people's work; keep them private unless you have the right to share them.
+- **ffmpeg is optional.** Without it, videos are stored and play, but have no poster frame and are not tagged. Install it later and the posters are made the next time they are needed. `REFS_MAX_VIDEO_MB` changes the 200 MB cap.
 - **Type.** The interface uses [Switzer](https://www.fontshare.com/fonts/switzer) from Fontshare, fetched at build time and not redistributed here.
 
 ## Development
@@ -195,7 +197,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for how the code is laid out. [docs/spec.
 ## Not there yet
 
 - A browser extension for saving images from a page.
-- Video and PDF references.
+- PDF references, and YouTube or Vimeo as video (they stay link refs).
 - Ordering refs by hand.
 - Any hosted or multi-user mode.
 
