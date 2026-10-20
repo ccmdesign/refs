@@ -1,5 +1,5 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync } from "node:fs";
+import { execFile, spawnSync } from "node:child_process";
+import { existsSync, mkdirSync, renameSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { RefData } from "./types.ts";
 import { VIDEO_EXTENSIONS } from "./types.ts";
@@ -47,6 +47,15 @@ function run(cmd: string, args: string[]) {
   });
 }
 
+// Async, so making a poster in the server never blocks other requests.
+function runAsync(cmd: string, args: string[]): Promise<{ ok: boolean; stdout: string }> {
+  return new Promise((resolve) => {
+    execFile(cmd, args, { timeout: 60_000, windowsHide: true, maxBuffer: 1024 * 1024 }, (err, stdout) => {
+      resolve({ ok: !err, stdout: String(stdout ?? "") });
+    });
+  });
+}
+
 export type FfmpegCheck = { ok: boolean; detail: string };
 
 export function checkFfmpeg(): FfmpegCheck {
@@ -63,8 +72,8 @@ export function checkFfmpeg(): FfmpegCheck {
 
 export type VideoInfo = { width?: number; height?: number; duration?: number };
 
-export function probeVideo(absPath: string): VideoInfo {
-  const res = run(tool("ffprobe"), [
+export async function probeVideo(absPath: string): Promise<VideoInfo> {
+  const res = await runAsync(tool("ffprobe"), [
     "-v",
     "error",
     "-select_streams",
@@ -75,7 +84,7 @@ export function probeVideo(absPath: string): VideoInfo {
     "json",
     absPath,
   ]);
-  if (res.error || res.status !== 0) return {};
+  if (!res.ok) return {};
   try {
     const data = JSON.parse(res.stdout) as {
       streams?: { width?: number; height?: number }[];
@@ -97,12 +106,16 @@ export function posterRelative(videoRel: string): string {
   return videoRel.replace(/\.[^./]+$/, ".poster.jpg");
 }
 
-/** Saves one frame, about a second in (earlier for short clips), as a JPEG. */
-export function makePoster(absVideo: string, absPoster: string, duration?: number): boolean {
+/**
+ * Saves one frame, about a second in (earlier for short clips), as a JPEG.
+ * Written to a temporary name first, so a half-written poster is never read.
+ */
+export async function makePoster(absVideo: string, absPoster: string, duration?: number): Promise<boolean> {
   mkdirSync(dirname(absPoster), { recursive: true });
+  const tmp = absPoster.replace(/\.jpg$/, `.${process.pid}.${Date.now()}.tmp.jpg`);
   const at = duration ? Math.min(1, duration / 10) : 0;
   const attempt = (seek: number) =>
-    run(tool("ffmpeg"), [
+    runAsync(tool("ffmpeg"), [
       "-v",
       "error",
       "-y",
@@ -116,35 +129,52 @@ export function makePoster(absVideo: string, absPoster: string, duration?: numbe
       "scale='min(1600,iw)':-2",
       "-q:v",
       "3",
-      absPoster,
+      tmp,
     ]);
-  let res = attempt(at);
-  if ((res.error || res.status !== 0 || !existsSync(absPoster)) && at > 0) res = attempt(0);
-  return !res.error && res.status === 0 && existsSync(absPoster);
+  let res = await attempt(at);
+  if ((!res.ok || !existsSync(tmp)) && at > 0) res = await attempt(0);
+  if (!res.ok || !existsSync(tmp)) {
+    rmSync(tmp, { force: true });
+    return false;
+  }
+  renameSync(tmp, absPoster);
+  return true;
 }
+
+// One poster job per ref at a time, however many thumbnail sizes ask for it at once.
+const inFlight = new Map<string, Promise<string | undefined>>();
 
 /**
  * The poster for a video ref, made now if ffmpeg is available and it is missing.
  * Returns the absolute path, or undefined when there is none.
  */
-export function ensurePoster(lib: string, ref: RefData): string | undefined {
-  if (!isVideoRef(ref) || !ref.file) return undefined;
-  const rel = ref.poster ?? posterRelative(ref.file);
+export function ensurePoster(lib: string, ref: RefData): Promise<string | undefined> {
+  if (!isVideoRef(ref) || !ref.file) return Promise.resolve(undefined);
+  const key = join(lib, ref.id);
+  const running = inFlight.get(key);
+  if (running) return running;
+  const job = makeMissingPoster(lib, ref).finally(() => inFlight.delete(key));
+  inFlight.set(key, job);
+  return job;
+}
+
+async function makeMissingPoster(lib: string, ref: RefData): Promise<string | undefined> {
+  const rel = ref.poster ?? posterRelative(ref.file!);
   const abs = join(lib, rel);
   if (existsSync(abs)) {
     if (!ref.poster) setVideoMeta(lib, ref.id, { poster: rel });
     return abs;
   }
-  const video = join(lib, ref.file);
+  const video = join(lib, ref.file!);
   if (!existsSync(video)) return undefined;
-  const info = ref.duration || ref.width ? {} : probeVideo(video);
-  if (!makePoster(video, abs, ref.duration ?? info.duration)) return undefined;
+  const info = ref.duration || ref.width ? {} : await probeVideo(video);
+  if (!(await makePoster(video, abs, ref.duration ?? info.duration))) return undefined;
   setVideoMeta(lib, ref.id, { poster: rel, ...info });
   return abs;
 }
 
 /** The still image for a ref: the file itself for images, the poster for videos. */
-export function stillImagePath(lib: string, ref: RefData): string | undefined {
+export async function stillImagePath(lib: string, ref: RefData): Promise<string | undefined> {
   if (!ref.file) return undefined;
   if (isVideoRef(ref)) return ensurePoster(lib, ref);
   const abs = join(lib, ref.file);

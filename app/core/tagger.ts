@@ -173,7 +173,7 @@ async function tagRefCore(
   if (!ref.file) {
     throw new Error(`Ref ${id} has no local image file`);
   }
-  const imagePath = stillImagePath(lib, ref);
+  const imagePath = await stillImagePath(lib, ref);
   if (!imagePath) {
     throw new Error(
       isVideoRef(ref)

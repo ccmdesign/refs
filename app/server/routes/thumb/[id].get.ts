@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: "Not an image ref" });
   }
   // For a video this is its poster frame, made now if it is missing and ffmpeg is there.
-  const abs = stillImagePath(lib, ref);
+  const abs = await stillImagePath(lib, ref);
   if (!abs) {
     throw createError({ statusCode: 404, statusMessage: "No still image" });
   }

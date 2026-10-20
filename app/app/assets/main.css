@@ -621,6 +621,13 @@ input.new-board:hover::placeholder {
   object-fit: cover;
 }
 
+/* A video whose size is not known yet (its poster is still being made) keeps a
+   frame, so the tile does not collapse and its badge stays inside it. */
+.tile-wrap.tile-pending {
+  min-height: 120px;
+  background: var(--hover);
+}
+
 .tile-video-badge {
   position: absolute;
   left: 8px;

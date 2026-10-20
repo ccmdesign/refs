@@ -113,7 +113,7 @@ async function storeMedia(
     added: todayDate(),
   };
   if (video) {
-    const info = probeVideo(absFile);
+    const info = await probeVideo(absFile);
     ref = { ...ref, kind: "video", width: info.width, height: info.height, duration: info.duration };
   } else {
     const dims = await imageDimensions(buf, ext);
@@ -123,7 +123,7 @@ async function storeMedia(
   if (!ref.source) delete ref.source;
   if (!ref.note) delete ref.note;
   atomicWriteSync(refPath, stringifyRef(ref));
-  if (video) ensurePoster(lib, ref);
+  if (video) await ensurePoster(lib, ref);
   const { readRefFile } = await import("./yaml.ts");
   return { id, duplicate: false, ref: readRefFile(refPath) };
 }

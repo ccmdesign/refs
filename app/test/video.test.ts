@@ -74,7 +74,7 @@ describe("video refs", () => {
 
     it("has no still image, so the video is not tagged", async () => {
       const { id } = await addFromBuffer(lib, Buffer.from("video bytes"), "clip.webm");
-      expect(stillImagePath(lib, getRef(lib, id))).toBeUndefined();
+      expect(await stillImagePath(lib, getRef(lib, id))).toBeUndefined();
       setTaggerAdapterForTests({
         id: "fake",
         check: async () => ({ ok: true, detail: "fake" }),
@@ -158,7 +158,14 @@ describe("video refs", () => {
       const { id } = await addFromFile(lib, clip);
       expect(getRef(lib, id).poster).toBeUndefined();
       vi.unstubAllEnvs();
-      const still = stillImagePath(lib, getRef(lib, id));
+      // Several thumbnail sizes asking at once share one ffmpeg run.
+      const [a, b] = await Promise.all([
+        stillImagePath(lib, getRef(lib, id)),
+        stillImagePath(lib, getRef(lib, id)),
+      ]);
+      expect(a).toBe(b);
+      expect(readdirSync(join(lib, "files", id.slice(0, 2))).sort()).toEqual([`${id}.mp4`, `${id}.poster.jpg`]);
+      const still = await stillImagePath(lib, getRef(lib, id));
       expect(still && existsSync(still)).toBe(true);
       expect(getRef(lib, id)).toMatchObject({ poster: `files/${id.slice(0, 2)}/${id}.poster.jpg`, width: 64 });
     });

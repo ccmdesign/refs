@@ -92,6 +92,7 @@ const durationLabel = computed(() => {
     <div
       v-else
       class="tile-wrap"
+      :class="{ 'tile-pending': isVideo && !item.ref.width }"
       :style="aspectStyle"
       @pointerenter="hovering = true"
       @pointerleave="hovering = false"
