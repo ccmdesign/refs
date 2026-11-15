@@ -12,11 +12,10 @@ defineProps<{
   <div>
     <NuxtLink
       :to="`/b/${node.path}`"
-      class="linkish"
-      :class="{ selected: current === node.path }"
+      :aria-current="current === node.path ? 'page' : undefined"
     >
       <span>{{ node.name }}</span>
-      <span class="count">{{ node.count }}</span>
+      <span class="count tone-muted tabular">{{ node.count }}</span>
     </NuxtLink>
     <div v-if="node.children.length" class="depth">
       <BoardTreeNode

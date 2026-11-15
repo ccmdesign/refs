@@ -42,8 +42,18 @@ shell.
 ## Interface
 
 The interface is deliberately plain: black on white, Switzer, hairline rules,
-no shadows, no rounded corners. Colours come from the variables at the top of
-`app/app/assets/main.css`; please do not add new hard-coded colours.
+no shadows, no rounded corners.
+
+The base styles, the tokens (`--fg`, `--bg`, `--muted`, `--rule`, `--space-*`,
+`--text-*`) and the shared classes (`titlebar`, `disclosure`, `button`,
+`cluster`, `stack`, `tone-muted`, `tabular`) come from the house design system,
+[ccm-labs-design-system](https://github.com/claudioccm/ccm-labs-design-system),
+a git dependency pinned to a release tag. Its `llms.txt` lists everything in it.
+`app/app/assets/main.css` imports it and holds only what is _refs's own, in the
+system's `overrides` layer; the block at its top lists where _refs's look
+differs from the system's. Read tokens instead of writing values, and please
+do not add new hard-coded colours. State goes in an attribute the browser or a
+screen reader already knows (`aria-pressed`, `aria-current`), not a class.
 
 ## Licence
 

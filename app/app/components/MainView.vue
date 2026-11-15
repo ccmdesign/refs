@@ -20,7 +20,6 @@ const { data: refsData, refresh: refreshRefs } = useRefsView(
 );
 
 const { columns, options, setColumns, step } = useZoom();
-const { theme, toggle: toggleTheme } = useTheme();
 const handoff = useHandoff();
 const intakeBoard = computed(() => (props.kind === "board" ? props.boardPath : undefined));
 async function onIntakeDone() {
@@ -328,10 +327,10 @@ async function commitTitle() {
       :current-board="boardPath"
       @refresh="refreshBoards"
     />
-    <div v-else class="sidebar" />
+    <div v-else class="app-sidebar" />
     <div class="rule-v" />
     <main class="main">
-      <header class="header-row">
+      <header class="titlebar header-row">
         <h1 class="view-title">
           <template v-for="p in parents" :key="p.path">
             <NuxtLink :to="`/b/${p.path}`" class="title-parent">{{ p.name }}</NuxtLink>
@@ -352,9 +351,9 @@ async function commitTitle() {
             @blur="commitTitle"
           />
           <span v-else>{{ title }}</span>
-          <span class="title-count">{{ refsData?.count ?? 0 }}</span>
+          <span class="title-count tone-muted tabular">{{ refsData?.count ?? 0 }}</span>
         </h1>
-        <div class="header-controls">
+        <div class="header-controls cluster" data-push="end">
           <button
             v-if="kind === 'board'"
             type="button"
@@ -368,31 +367,34 @@ async function commitTitle() {
             <input v-model="recursive" type="checkbox" />
             Include sub-boards
           </label>
-          <div class="columns-switch">
-            <span>Columns</span>
+          <div class="columns-switch" role="group" aria-label="Columns">
+            <span aria-hidden="true">Columns</span>
             <button
               v-for="n in options"
               :key="n"
               type="button"
-              :class="{ selected: columns === n }"
+              class="button"
+              :aria-pressed="columns === n"
               @click="setColumns(n)"
             >
               {{ n }}
             </button>
           </div>
-          <span v-if="refsData?.pending" class="muted">{{ refsData.pending }} tagging</span>
-          <button type="button" @click="toggleTheme">{{ theme === "dark" ? "Light" : "Dark" }}</button>
+          <span v-if="refsData?.pending" class="tone-muted">{{ refsData.pending }} tagging</span>
+          <cm-theme-toggle>
+            <button type="button" class="button" aria-pressed="false">Dark</button>
+          </cm-theme-toggle>
         </div>
       </header>
 
       <details
         v-if="kind === 'board' || allTags.length"
-        class="board-details"
+        class="board-details disclosure"
         @toggle="onDetailsToggle"
       >
         <summary>
           <span>{{ kind === "board" ? "Brief and tags" : "Tags" }}</span>
-          <span v-if="detailsHint" class="muted">{{ detailsHint }}</span>
+          <span v-if="detailsHint" class="tone-muted">{{ detailsHint }}</span>
         </summary>
         <div v-if="kind === 'board'" class="brief-area">
           <textarea
@@ -411,7 +413,9 @@ async function commitTitle() {
             v-for="tag in visibleTags"
             :key="tag"
             type="button"
-            :class="{ on: activeTags.includes(tag) }"
+            class="button"
+            data-variant="quiet"
+            :aria-pressed="activeTags.includes(tag)"
             @click="toggleTag(tag)"
           >
             {{ tag }}
@@ -419,7 +423,8 @@ async function commitTitle() {
           <button
             v-if="allTags.length > TAGS_COLLAPSED"
             type="button"
-            class="tag-more"
+            class="button tag-more"
+            data-variant="quiet"
             @click="showAllTags = !showAllTags"
           >
             {{ showAllTags ? "Fewer tags" : `All ${allTags.length} tags` }}
@@ -427,7 +432,7 @@ async function commitTitle() {
         </div>
       </details>
 
-      <p v-if="!refsData?.refs.length" class="empty">
+      <p v-if="!refsData?.refs.length" class="empty tone-muted">
         No refs yet. Drop images or paste a URL.
       </p>
       <RefGrid
@@ -458,6 +463,7 @@ async function commitTitle() {
             v-model="newBoardName"
             type="text"
             placeholder="New board name (use / for a sub-board)"
+            aria-label="New board name"
             @keydown.enter="createAndBulk"
             @keydown.esc.stop="newBoardFor = null"
           />
@@ -468,12 +474,12 @@ async function commitTitle() {
           <span v-if="bulkError" class="form-error">{{ bulkError }}</span>
         </template>
         <template v-else>
-        <select :disabled="bulkBusy" @change="onBulkPick('move', $event)">
+        <select :disabled="bulkBusy" :aria-label="kind === 'board' ? 'Move to a board' : 'Add to a board'" @change="onBulkPick('move', $event)">
           <option value="">{{ kind === "board" ? "Move to…" : "Add to…" }}</option>
           <option v-for="p in boardPaths" :key="p" :value="p" :disabled="p === boardPath">{{ p }}</option>
           <option :value="NEW_BOARD">New board…</option>
         </select>
-        <select v-if="kind === 'board'" :disabled="bulkBusy" @change="onBulkPick('add', $event)">
+        <select v-if="kind === 'board'" :disabled="bulkBusy" aria-label="Also add to a board" @change="onBulkPick('add', $event)">
           <option value="">Also add to…</option>
           <option v-for="p in boardPaths" :key="p" :value="p" :disabled="p === boardPath">{{ p }}</option>
           <option :value="NEW_BOARD">New board…</option>

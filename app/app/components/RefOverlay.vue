@@ -11,6 +11,9 @@ const emit = defineEmits<{ close: []; change: []; navigate: [index: number] }>()
 
 const current = computed(() => props.items[props.index]);
 
+// Each field's name is a label for its control.
+const uid = useId();
+
 // The frame takes the image's own proportions; links fall back to 4:3.
 const frameStyle = computed(() => {
   const w = current.value?.ref.width;
@@ -192,8 +195,8 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
     />
     <div v-else class="ref-link">{{ current.ref.url }}</div>
     <div class="ref-drawer">
-    <div class="ref-panel">
-      <div class="panel-head">
+    <div class="ref-panel stack">
+      <div class="panel-head cluster" data-align="start" data-space="xs">
         <input
           v-model="title"
           class="title-input"
@@ -212,19 +215,19 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
         </button>
       </div>
       <div>
-        <div class="field-head">
-          <label>Source</label>
+        <div class="field-head cluster" data-justify="between" data-align="baseline" data-space="2xs">
+          <label class="field-name" :for="`${uid}-source`">Source</label>
           <a v-if="source" :href="source" target="_blank" rel="noopener">Open ↗</a>
         </div>
-        <input v-model="source" type="text" placeholder="Where it came from" @blur="patchRef" />
+        <input :id="`${uid}-source`" v-model="source" type="text" placeholder="Where it came from" @blur="patchRef" />
       </div>
       <div>
-        <label>Note</label>
-        <textarea v-model="note" placeholder="What is true of this ref anywhere" @blur="patchRef" />
+        <label class="field-name" :for="`${uid}-note`">Note</label>
+        <textarea :id="`${uid}-note`" v-model="note" placeholder="What is true of this ref anywhere" @blur="patchRef" />
       </div>
       <div v-if="boardPath">
-        <label>Board note</label>
-        <textarea v-model="boardNote" placeholder="What to take from it for this board" @blur="patchBoardRef" />
+        <label class="field-name" :for="`${uid}-board-note`">Board note</label>
+        <textarea :id="`${uid}-board-note`" v-model="boardNote" placeholder="What to take from it for this board" @blur="patchBoardRef" />
       </div>
       <div v-if="boardPath">
         <label class="label-inline">
@@ -233,53 +236,54 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
         </label>
       </div>
       <div>
-        <label>Tags</label>
-        <input v-model="tagsInput" type="text" placeholder="comma-separated" @blur="patchRef" />
+        <label class="field-name" :for="`${uid}-tags`">Tags</label>
+        <input :id="`${uid}-tags`" v-model="tagsInput" type="text" placeholder="comma-separated" @blur="patchRef" />
       </div>
       <div>
-        <label>Machine tags</label>
+        <p class="field-name">Machine tags</p>
         <div class="tag-list">
           <span v-for="t in current.ref.auto?.tags ?? []" :key="t">{{ t }}</span>
           <span v-if="!(current.ref.auto?.tags?.length)">—</span>
         </div>
-        <button type="button" class="quiet" @click="retag">Re-tag</button>
+        <button type="button" class="button" data-variant="quiet" @click="retag">Re-tag</button>
       </div>
       <div v-if="current.ref.auto?.description">
-        <label>Description</label>
-        <p class="muted">{{ current.ref.auto.description }}</p>
+        <p class="field-name">Description</p>
+        <p class="tone-muted">{{ current.ref.auto.description }}</p>
       </div>
       <div>
-        <label>On boards</label>
-        <div v-for="b in current.boards" :key="b" class="on-board">
+        <p class="field-name">On boards</p>
+        <div v-for="b in current.boards" :key="b" class="on-board cluster" data-justify="between" data-align="baseline" data-space="2xs">
           <span>{{ b }}</span>
-          <button type="button" class="quiet" @click="removeBoard(b)">Remove</button>
+          <button type="button" class="button" data-variant="quiet" @click="removeBoard(b)">Remove</button>
         </div>
       </div>
-      <div v-if="namingBoard" class="actions">
+      <div v-if="namingBoard" class="actions cluster" data-space="2xs">
         <input
           ref="newBoardField"
           v-model="newBoardName"
           type="text"
           placeholder="New board name (use / for a sub-board)"
+          aria-label="New board name"
           @keydown.enter="createAndAdd"
           @keydown.esc.stop="namingBoard = false"
         />
-        <button type="button" class="quiet" @click="createAndAdd">Create and add</button>
-        <button type="button" class="quiet" @click="namingBoard = false">Back</button>
+        <button type="button" class="button" data-variant="quiet" @click="createAndAdd">Create and add</button>
+        <button type="button" class="button" data-variant="quiet" @click="namingBoard = false">Back</button>
       </div>
-      <div v-else-if="confirmingDelete" class="actions">
+      <div v-else-if="confirmingDelete" class="actions cluster" data-space="2xs">
         <span>Move this ref to trash?</span>
-        <button type="button" class="quiet" @click="deleteRef">Delete</button>
-        <button type="button" class="quiet" @click="confirmingDelete = false">Cancel</button>
+        <button type="button" class="button" data-variant="quiet" @click="deleteRef">Delete</button>
+        <button type="button" class="button" data-variant="quiet" @click="confirmingDelete = false">Cancel</button>
       </div>
-      <div v-else class="actions">
-        <select @change="onPickBoard">
+      <div v-else class="actions cluster" data-space="2xs">
+        <select aria-label="Add to board" @change="onPickBoard">
           <option value="">Add to board…</option>
           <option v-for="p in otherBoards" :key="p" :value="p">{{ p }}</option>
           <option :value="NEW_BOARD">New board…</option>
         </select>
-        <button type="button" class="quiet" @click="confirmingDelete = true">Delete</button>
-        <button type="button" class="quiet" @click="emit('close')">Close</button>
+        <button type="button" class="button" data-variant="quiet" @click="confirmingDelete = true">Delete</button>
+        <button type="button" class="button" data-variant="quiet" @click="emit('close')">Close</button>
       </div>
       <p v-if="panelError" class="form-error">{{ panelError }}</p>
       <p class="saved" :class="{ on: saved }" aria-live="polite">{{ saved ? "Saved" : "" }}</p>
