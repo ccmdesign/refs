@@ -408,13 +408,12 @@ async function commitTitle() {
           />
         </div>
 
-        <div v-if="allTags.length" class="tag-row">
+        <div v-if="allTags.length" class="tag-row cluster" data-space="2xs">
           <button
             v-for="tag in visibleTags"
             :key="tag"
             type="button"
-            class="button"
-            data-variant="quiet"
+            class="chip"
             :aria-pressed="activeTags.includes(tag)"
             @click="toggleTag(tag)"
           >

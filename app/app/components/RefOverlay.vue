@@ -199,7 +199,7 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
       <div class="panel-head cluster" data-align="start" data-space="xs">
         <input
           v-model="title"
-          class="title-input"
+          class="title-input display"
           type="text"
           aria-label="Title"
           placeholder="Untitled"

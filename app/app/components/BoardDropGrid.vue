@@ -46,7 +46,7 @@ function cellClass(path: string) {
 <template>
   <Teleport to="body">
     <div v-if="drag.active" class="drop-grid stack" data-space="m" role="dialog" aria-label="Choose a board">
-      <p class="titlebar drop-grid-heading">{{ heading }}</p>
+      <p class="titlebar display drop-grid-heading" data-size="display">{{ heading }}</p>
       <div class="drop-rows">
         <div v-for="(row, r) in rows" :key="row.board.path" class="drop-row" :style="{ '--row': r }">
           <div

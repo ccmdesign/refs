@@ -20,7 +20,7 @@
   },
   "dependencies": {
     "@nuxt/fonts": "^1.0.1",
-    "ccm-labs-design-system": "github:claudioccm/ccm-labs-design-system#v0.2.0",
+    "ccm-labs-design-system": "github:claudioccm/ccm-labs-design-system#v0.3.0",
     "nuxt": "^4.6.1",
     "sharp": "^0.35.5",
     "vue": "^3.5.43",

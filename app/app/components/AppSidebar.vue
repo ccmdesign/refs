@@ -42,7 +42,7 @@ function cancelNewBoard() {
 
 <template>
   <aside class="app-sidebar stack" data-space="m">
-    <NuxtLink to="/" class="app-name">_refs</NuxtLink>
+    <NuxtLink to="/" class="app-name display">_refs</NuxtLink>
     <nav class="sidebar-nav" aria-label="Views">
       <NuxtLink to="/" :aria-current="currentKind === 'all' ? 'page' : undefined">
         <span>All refs</span>

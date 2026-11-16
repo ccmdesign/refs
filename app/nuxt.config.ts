@@ -28,6 +28,12 @@ export default defineNuxtConfig({
         provider: "fontshare",
         weights: [400, 500, 600],
       },
+      // The display face: the view title, the app name, a panel's title.
+      {
+        name: "Montagu Slab",
+        provider: "google",
+        weights: [300],
+      },
     ],
   },
   app: {

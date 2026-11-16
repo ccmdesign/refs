@@ -41,19 +41,26 @@ shell.
 
 ## Interface
 
-The interface is deliberately plain: black on white, Switzer, hairline rules,
-no shadows, no rounded corners.
-
-The base styles, the tokens (`--fg`, `--bg`, `--muted`, `--rule`, `--space-*`,
-`--text-*`) and the shared classes (`titlebar`, `disclosure`, `button`,
-`cluster`, `stack`, `tone-muted`, `tabular`) come from the house design system,
+The interface has the house look of
 [ccm-labs-design-system](https://github.com/claudioccm/ccm-labs-design-system),
-a git dependency pinned to a release tag. Its `llms.txt` lists everything in it.
-`app/app/assets/main.css` imports it and holds only what is _refs's own, in the
-system's `overrides` layer; the block at its top lists where _refs's look
-differs from the system's. Read tokens instead of writing values, and please
-do not add new hard-coded colours. State goes in an attribute the browser or a
-screen reader already knows (`aria-pressed`, `aria-current`), not a class.
+a git dependency pinned to a release tag: ink on paper and its dark twin,
+Switzer for text and Montagu Slab for titles, square corners, solid ink rules,
+dotted grey lines between things, no shadows. Its `llms.txt` lists every class
+and token.
+
+`app/app/assets/main.css` imports the system and holds only what is _refs's
+own: its layout and its own widgets (the masonry, the tiles, the ref overlay,
+the board grid). It never restyles the system's look; if the look should
+change, it changes in the design system. In practice:
+
+- Read tokens instead of writing values: `--fg`, `--bg`, `--muted`, `--rule`,
+  `--space-*`, `--text-*`. Please do not add hard-coded colours or sizes.
+- Use the system's classes where one fits: `titlebar`, `disclosure`, `display`,
+  `button`, `chip`, `cluster`, `stack`, `tone-muted`, `tabular`.
+- A grey line is `background: var(--dots-below)` (or `-above`, `-start`), not a
+  border.
+- State goes in an attribute the browser or a screen reader already knows
+  (`aria-pressed`, `aria-current`), not a class.
 
 ## Licence
 
