@@ -2,7 +2,6 @@
 import type { BoardTreeNode } from "../types";
 
 const { data: boards, refresh: refreshBoards } = useBoards();
-const { theme, toggle: toggleTheme } = useTheme();
 const drag = useBoardDrag();
 
 type Cell = { path: string; label: string; parent?: string; count: number };
@@ -167,16 +166,20 @@ const draggedIsNested = computed(() => {
       current-kind="boards"
       @refresh="refreshBoards"
     />
-    <div v-else class="sidebar" />
+    <div v-else class="app-sidebar" />
     <div class="rule-v" />
     <main class="main boards-page">
-      <header class="header-row">
+      <header class="titlebar header-row">
         <h1 class="view-title">
           All boards
-          <span class="title-count">{{ boardCount }}</span>
+          <span class="title-count tone-muted tabular">{{ boardCount }}</span>
         </h1>
-        <div class="header-controls">
-          <button type="button" @click="toggleTheme">{{ theme === "dark" ? "Light" : "Dark" }}</button>
+        <div class="header-controls cluster" data-push="end">
+          <cm-theme-toggle>
+            <button type="button" class="theme-toggle" aria-label="Dark mode" aria-pressed="false" title="Dark mode">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.2" /><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" /></svg>
+            </button>
+          </cm-theme-toggle>
         </div>
       </header>
       <p v-if="drag.error.value" class="form-error boards-drag-error">{{ drag.error.value }}</p>
@@ -192,7 +195,7 @@ const draggedIsNested = computed(() => {
         Drop here to make it a top-level board
       </div>
 
-      <p v-if="boards && !boards.tree.length" class="empty">No boards yet.</p>
+      <p v-if="boards && !boards.tree.length" class="empty tone-muted">No boards yet.</p>
 
       <div v-if="boards?.tree.length" class="drop-rows">
         <div v-for="row in rows" :key="row.board.path" class="drop-row">
@@ -205,13 +208,13 @@ const draggedIsNested = computed(() => {
               <template v-if="descendantCount(row.top)">
                 and its {{ descendantCount(row.top) }} sub-boards
               </template>
-              <span class="muted"> Refs stay in the library.</span>
+              <span class="tone-muted"> Refs stay in the library.</span>
             </p>
-            <div class="cell-confirm-actions">
-              <button type="button" class="quiet" @click="confirmDelete(row.board.path)">
+            <div class="cell-confirm-actions cluster" data-space="2xs">
+              <button type="button" class="button" data-variant="quiet" @click="confirmDelete(row.board.path)">
                 Delete
               </button>
-              <button type="button" class="quiet" @click="cancelConfirm">Cancel</button>
+              <button type="button" class="button" data-variant="quiet" @click="cancelConfirm">Cancel</button>
             </div>
             <p v-if="confirmError" class="form-error">{{ confirmError }}</p>
           </div>
@@ -230,7 +233,8 @@ const draggedIsNested = computed(() => {
           >
             <button
               type="button"
-              class="quiet cell-delete"
+              class="button cell-delete"
+              data-variant="quiet"
               @click.prevent.stop="startConfirm(row.board.path)"
             >
               Delete
@@ -250,11 +254,11 @@ const draggedIsNested = computed(() => {
                   <template v-if="descendantCount(findNode(c.path))">
                     and its {{ descendantCount(findNode(c.path)) }} sub-boards
                   </template>
-                  <span class="muted"> Refs stay in the library.</span>
+                  <span class="tone-muted"> Refs stay in the library.</span>
                 </p>
-                <div class="cell-confirm-actions">
-                  <button type="button" class="quiet" @click="confirmDelete(c.path)">Delete</button>
-                  <button type="button" class="quiet" @click="cancelConfirm">Cancel</button>
+                <div class="cell-confirm-actions cluster" data-space="2xs">
+                  <button type="button" class="button" data-variant="quiet" @click="confirmDelete(c.path)">Delete</button>
+                  <button type="button" class="button" data-variant="quiet" @click="cancelConfirm">Cancel</button>
                 </div>
                 <p v-if="confirmError" class="form-error">{{ confirmError }}</p>
               </div>
@@ -271,7 +275,7 @@ const draggedIsNested = computed(() => {
                 @dragleave="drag.leave(c.path)"
                 @drop="drag.drop($event, c.path)"
               >
-                <button type="button" class="quiet cell-delete" @click.prevent.stop="startConfirm(c.path)">
+                <button type="button" class="button cell-delete" data-variant="quiet" @click.prevent.stop="startConfirm(c.path)">
                   Delete
                 </button>
                 <span v-if="c.parent" class="drop-cell-parent">{{ c.parent }} /</span>

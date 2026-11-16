@@ -82,7 +82,7 @@ const viaBoardLabel = computed(() => {
         draggable="false"
       />
     </div>
-    <p v-if="viaBoardLabel" class="tile-via muted">{{ viaBoardLabel }}</p>
+    <p v-if="viaBoardLabel" class="tile-via tone-muted">{{ viaBoardLabel }}</p>
     <p v-if="item.boardNote || item.ref.note" class="tile-note">
       {{ item.boardNote || item.ref.note }}
     </p>

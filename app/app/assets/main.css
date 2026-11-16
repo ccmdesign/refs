@@ -1,1270 +1,990 @@
-/* Tokens. Two inks, one rule colour, one spacing scale (4 8 12 16 24 32 48). */
-:root {
-  --fg: #000;
-  --bg: #fff;
-  --muted: #6b6b6b;
-  --hover: #f5f5f5;
-  --rule: #e6e6e6;
-  --backdrop: rgba(0, 0, 0, 0.4);
-  --sidebar: 232px;
-  /* Layered elevation; geometry from the BFNA medium shadow, in neutral ink. */
-  --shadow-color: 0 0% 0%;
-  --shadow-raised:
-    0.3px 0.5px 0.7px hsl(var(--shadow-color) / 0.2),
-    0.8px 1.6px 2px -0.8px hsl(var(--shadow-color) / 0.2),
-    2.1px 4.1px 5.2px -1.7px hsl(var(--shadow-color) / 0.2),
-    5px 10px 12.6px -2.5px hsl(var(--shadow-color) / 0.2);
-  color-scheme: light;
-}
+/* The house design system (github.com/claudioccm/ccm-labs-design-system): the look. Ink on paper and its dark
+   twin, the type and space scales, Montagu Slab titles, dotted grey lines, controls, and the blocks used in
+   the components (titlebar, disclosure, display, button, chip, cluster, stack, tone-muted, tabular). Its
+   llms.txt documents every class and token. It is imported here, first, so its layer order is set before
+   anything below. */
+@import "ccm-labs-design-system/cm.css";
 
-:root[data-theme="dark"] {
-  --fg: #fff;
-  --bg: #000;
-  --muted: #9a9a9a;
-  --hover: #1a1a1a;
-  --rule: #2b2b2b;
-  --backdrop: rgba(0, 0, 0, 0.7);
-  /* On black a shadow cannot show; the selected border carries the state. */
-  --shadow-color: 0 0% 0%;
-  color-scheme: dark;
-}
+/* Only what is _refs's own: its layout and its own widgets (the masonry, tiles, the ref overlay, the board
+   grid). Nothing here restyles the system's look. Everything sits in the system's `overrides` layer, so it
+   wins without !important. */
+@layer overrides {
+  /* Every link here is a nav item, a card or a title, so none takes the system's link rule. */
+  a {
+    border: 0;
+    color: inherit;
+    text-decoration: none;
+  }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
+  :root {
+    --sidebar: 232px;
+  }
 
-html,
-body,
-#__nuxt {
-  margin: 0;
-  min-height: 100%;
-}
+  html,
+  body,
+  #__nuxt {
+    min-height: 100%;
+  }
 
-body {
-  font-family: "Switzer", system-ui, sans-serif;
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--fg);
-  background: var(--bg);
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
+  .form-error {
+    font-size: var(--text-label);
+    font-weight: 500;
+  }
 
-::selection {
-  background: var(--fg);
-  color: var(--bg);
-}
+  /* Shell */
 
-:focus-visible {
-  outline: 2px solid var(--fg);
-  outline-offset: 2px;
-}
+  .app-shell {
+    display: grid;
+    grid-template-columns: var(--sidebar) 1px minmax(0, 1fr);
+    min-height: 100vh;
+  }
 
-h1,
-p {
-  margin: 0;
-}
+  .rule-v {
+    background: var(--dots-start);
+    width: 1px;
+  }
 
-a {
-  color: inherit;
-  text-decoration: none;
-}
+  /* Sidebar: stays put while the grid scrolls. */
 
-/* Controls */
+  .app-sidebar {
+    position: sticky;
+    top: 0;
+    align-self: start;
+    height: 100vh;
+    overflow-y: auto;
+    padding: var(--space-m) var(--space-s);
+  }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-  color: inherit;
-  background: var(--bg);
-  border: 1px solid var(--rule);
-  border-radius: 0;
-  padding: 4px 8px;
-}
+  /* The app's name, in the display face: aligned with the nav text, on the board title's baseline. */
+  .app-name {
+    align-self: flex-start;
+    padding: 0 var(--space-2xs);
+    line-height: 35px;
+  }
 
-input::placeholder,
-textarea::placeholder {
-  color: var(--muted);
-  opacity: 1;
-}
+  .sidebar-nav,
+  .board-tree {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+  }
 
-input:not([type="checkbox"]):hover,
-textarea:hover,
-select:hover {
-  border-color: var(--muted);
-}
+  .sidebar-nav a,
+  .board-tree a {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--space-2xs);
+    padding: var(--space-3xs) var(--space-2xs);
+  }
 
-input:not([type="checkbox"]):focus-visible,
-textarea:focus-visible,
-select:focus-visible {
-  outline: none;
-  border-color: var(--fg);
-}
+  .sidebar-nav a:hover,
+  .board-tree a:hover {
+    background: var(--hover);
+  }
 
-input[type="checkbox"] {
-  accent-color: var(--fg);
-  margin: 0;
-}
+  /* The current item is filled, and stays so under the pointer. */
+  .sidebar-nav a[aria-current="page"],
+  .board-tree a[aria-current="page"],
+  .sidebar-nav a[aria-current="page"]:hover,
+  .board-tree a[aria-current="page"]:hover {
+    background: var(--fg);
+    color: var(--bg);
+  }
 
-button {
-  cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
-}
+  .app-sidebar a[aria-current="page"] .count {
+    color: inherit;
+  }
 
-button:hover {
-  background: var(--hover);
-}
+  .board-tree .depth {
+    padding-left: var(--space-xs);
+  }
 
-button:disabled,
-select:disabled {
-  color: var(--muted);
-  cursor: default;
-}
+  input.new-board {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: var(--space-3xs) var(--space-2xs);
+    outline: none;
+  }
 
-button.selected,
-a.selected {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
-}
+  input.new-board:hover::placeholder {
+    color: var(--fg);
+  }
 
-/* A text-only action that should not compete with fields or primary buttons. */
-button.quiet {
-  border-color: transparent;
-  padding: 2px 6px;
-  color: var(--muted);
-}
+  .new-board-error {
+    padding: 0 var(--space-2xs);
+  }
 
-button.quiet:hover {
-  color: var(--fg);
-}
+  .title-name {
+    cursor: text;
+    outline: none;
+  }
 
-.muted {
-  color: var(--muted);
-}
+  .title-name:hover {
+    box-shadow: inset 0 -1px var(--rule);
+  }
 
-.form-error {
-  font-size: 12px;
-  font-weight: 500;
-}
+  .title-name:focus {
+    box-shadow: inset 0 -1px var(--fg);
+  }
 
-/* Shell */
+  .drop-root {
+    padding: var(--space-2xs);
+    border: 1px solid var(--muted);
+    color: var(--muted);
+  }
 
-.app-shell {
-  display: grid;
-  grid-template-columns: var(--sidebar) 1px minmax(0, 1fr);
-  min-height: 100vh;
-}
+  .drop-root.drop-target {
+    outline: 1px solid var(--fg);
+    outline-offset: -1px;
+    background: var(--hover);
+    color: var(--fg);
+  }
 
-.rule-v {
-  background: var(--rule);
-  width: 1px;
-}
+  .boards-page .drop-row {
+    animation: none;
+  }
 
-/* Sidebar: stays put while the grid scrolls. */
+  /* The board's own cell keeps its size instead of stretching to a tall row. */
+  .boards-page .drop-row > .drop-cell {
+    align-self: start;
+  }
 
-.sidebar {
-  position: sticky;
-  top: 0;
-  align-self: start;
-  height: 100vh;
-  overflow-y: auto;
-  padding: 24px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
+  /* Pinned to the viewport, so it is reachable when scrolled and never shifts
+     the cells under the pointer when it appears. */
+  .boards-page .boards-drop-top {
+    position: fixed;
+    left: 50%;
+    bottom: var(--space-m);
+    z-index: 50;
+    transform: translateX(-50%);
+    padding: var(--space-s) var(--space-l);
+    background: var(--bg);
+    text-align: center;
+    white-space: nowrap;
+  }
 
-/* The app's name: aligned with the nav text, on the board title's baseline. */
-.app-name {
-  align-self: flex-start;
-  padding: 0 8px;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 35px;
-  letter-spacing: -0.01em;
-}
+  .boards-page .boards-drag-error {
+    margin-bottom: var(--space-xs);
+  }
 
-.sidebar-nav,
-.board-tree {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-}
+  /* Hover is the system's tint and nothing else. */
+  .boards-page .drop-cell:hover:not(.over) {
+    background: var(--hover);
+  }
 
-.sidebar-nav a,
-.board-tree a {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 8px;
-}
+  .boards-page .drop-cell.dragging {
+    opacity: 0.4;
+  }
 
-.sidebar-nav a:hover,
-.board-tree a:hover {
-  background: var(--hover);
-}
+  .boards-page .drop-cell {
+    position: relative;
+  }
 
-/* The current item keeps its inverted state under the pointer. */
-.sidebar-nav a.selected,
-.board-tree a.selected,
-.sidebar-nav a.selected:hover,
-.board-tree a.selected:hover,
-button.selected:hover {
-  background: var(--fg);
-  color: var(--bg);
-}
+  .boards-page .drop-cell-add {
+    justify-content: center;
+  }
 
-.sidebar .count {
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
+  .boards-page .board-inline-input,
+  .boards-page .board-inline-input:focus-visible {
+    width: 100%;
+    border: none;
+    background: transparent;
+    padding: 0;
+    outline: none;
+  }
 
-.sidebar a.selected .count {
-  color: inherit;
-}
-
-.board-tree .depth {
-  padding-left: 12px;
-}
-
-input.new-board {
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 4px 8px;
-  outline: none;
-}
-
-input.new-board:hover::placeholder {
-  color: var(--fg);
-}
-
-.new-board-error {
-  padding: 0 8px;
-}
-
-.title-name {
-  cursor: text;
-  outline: none;
-}
-
-.title-name:hover {
-  box-shadow: inset 0 -1px var(--rule);
-}
-
-.title-name:focus {
-  box-shadow: inset 0 -1px var(--fg);
-}
-
-.drop-root {
-  padding: 8px;
-  border: 1px dashed var(--muted);
-  color: var(--muted);
-}
-
-.drop-root.drop-target {
-  outline: 1px solid var(--fg);
-  outline-offset: -1px;
-  background: var(--hover);
-  color: var(--fg);
-}
-
-.boards-page .drop-row {
-  animation: none;
-}
-
-/* The board's own cell keeps its size instead of stretching to a tall row. */
-.boards-page .drop-row > .drop-cell {
-  align-self: start;
-}
-
-/* Pinned to the viewport, so it is reachable when scrolled and never shifts
-   the cells under the pointer when it appears. */
-.boards-page .boards-drop-top {
-  position: fixed;
-  left: 50%;
-  bottom: 24px;
-  z-index: 50;
-  transform: translateX(-50%);
-  padding: 16px 32px;
-  background: var(--bg);
-  text-align: center;
-  white-space: nowrap;
-}
-
-.boards-page .boards-drag-error {
-  margin-bottom: 12px;
-}
-
-.boards-page a.drop-cell {
-  color: inherit;
-  text-decoration: none;
-}
-
-/* Hover is a 5% tint of the ink and nothing else. */
-.boards-page .drop-cell:hover:not(.over) {
-  background: rgb(0 0 0 / 0.05);
-}
-
-:root[data-theme="dark"] .boards-page .drop-cell:hover:not(.over) {
-  background: rgb(255 255 255 / 0.05);
-}
-
-.boards-page .drop-cell.dragging {
-  opacity: 0.4;
-}
-
-.boards-page .drop-cell {
-  position: relative;
-}
-
-.boards-page .drop-cell-add {
-  border-style: dashed;
-  justify-content: center;
-}
-
-.boards-page .board-inline-input,
-.boards-page .board-inline-input:focus-visible {
-  width: 100%;
-  border: none;
-  background: transparent;
-  padding: 0;
-  outline: none;
-}
-
-.boards-page .cell-delete {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 1;
-  display: none;
-}
-
-.boards-page .cell-delete,
-.boards-page .cell-delete:hover,
-.boards-page .cell-confirm-actions button:hover {
-  background: transparent;
-}
-
-.boards-page .drop-cell:hover .cell-delete,
-.boards-page .drop-cell:focus-within .cell-delete {
-  display: block;
-}
-
-@media (hover: none) {
   .boards-page .cell-delete {
+    position: absolute;
+    top: var(--space-2xs);
+    right: var(--space-2xs);
+    z-index: 1;
+    display: none;
+  }
+
+  .boards-page .drop-cell:hover .cell-delete,
+  .boards-page .drop-cell:focus-within .cell-delete {
     display: block;
   }
-}
-
-.boards-page .drop-cell-confirm {
-  justify-content: flex-start;
-  gap: 8px;
-}
-
-.boards-page .cell-confirm-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Licence line, pinned to the foot of the sidebar. */
-.app-footer {
-  margin-top: auto;
-  padding: 0 8px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.app-footer a {
-  text-decoration: underline;
-  text-underline-offset: 2px;
-}
-
-.app-footer a:hover {
-  color: var(--fg);
-}
-
-/* Main column */
-
-.main {
-  padding: 24px 32px 96px;
-  min-width: 0;
-}
-
-.header-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 16px 32px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--fg);
-}
-
-/* The one large element on the page: which board this is. */
-.view-title {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 8px;
-  font-size: 32px;
-  font-weight: 600;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-}
-
-.title-parent,
-.title-sep {
-  color: var(--muted);
-  font-weight: 400;
-}
-
-.title-parent:hover {
-  color: var(--fg);
-}
-
-.title-count {
-  margin-left: 4px;
-  font-size: 13px;
-  font-weight: 400;
-  letter-spacing: 0;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
-
-.header-controls {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 24px;
-  margin-left: auto;
-}
-
-.header-controls label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  cursor: pointer;
-}
-
-.columns-switch {
-  display: inline-flex;
-  align-items: center;
-}
-
-.columns-switch span {
-  margin-right: 8px;
-  color: var(--muted);
-}
-
-/* Joined segments share their hairlines. */
-.columns-switch button {
-  min-width: 28px;
-  margin-left: -1px;
-}
-
-.columns-switch button.selected {
-  position: relative;
-}
-
-/* Brief and tags stay folded away until asked for; the grid comes first. */
-.board-details {
-  border-bottom: 1px solid var(--rule);
-}
-
-.board-details summary {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 8px 0;
-  cursor: pointer;
-  list-style: none;
-  user-select: none;
-}
-
-.board-details summary::-webkit-details-marker {
-  display: none;
-}
-
-/* A drawn disclosure mark: plus when closed, minus when open. */
-.board-details summary::before {
-  content: "";
-  width: 9px;
-  height: 9px;
-  align-self: center;
-  background:
-    linear-gradient(var(--fg), var(--fg)) center / 9px 1px no-repeat,
-    linear-gradient(var(--fg), var(--fg)) center / 1px 9px no-repeat;
-}
-
-.board-details[open] summary::before {
-  background: linear-gradient(var(--fg), var(--fg)) center / 9px 1px no-repeat;
-}
-
-.board-details summary:hover {
-  color: var(--muted);
-}
-
-.board-details[open] {
-  padding-bottom: 16px;
-}
-
-/* The brief is the board's body copy: read first, edited in place. */
-.brief-area textarea {
-  display: block;
-  width: 100%;
-  max-width: 72ch;
-  min-height: 0;
-  resize: none;
-  overflow: hidden;
-  border: none;
-  padding: 8px 0 0;
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.brief-area textarea:focus-visible {
-  outline: none;
-}
-
-/* Tags are a filter, not content: plain words, no boxes. */
-.tag-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 4px;
-  margin: 16px -6px 0;
-}
-
-.tag-row button {
-  border-color: transparent;
-  padding: 1px 6px;
-  color: var(--muted);
-}
-
-.tag-row button:hover {
-  color: var(--fg);
-}
-
-.tag-row button.on,
-.tag-row button.on:hover {
-  background: var(--fg);
-  color: var(--bg);
-}
-
-.tag-row .tag-more {
-  color: var(--fg);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
-/* Grid */
-
-.masonry {
-  column-gap: 16px;
-  margin-top: 24px;
-}
-
-.tile {
-  position: relative;
-  break-inside: avoid;
-  margin-bottom: 16px;
-  cursor: pointer;
-  border: 1px solid var(--rule);
-  background: var(--bg);
-  transition: border-color 120ms ease-out, box-shadow 200ms ease-out, transform 200ms ease-out;
-  -webkit-user-select: none;
-  user-select: none;
-  -webkit-touch-callout: none;
-}
-
-.tile:hover {
-  border-color: var(--muted);
-}
-
-/* Selected cards lift off the page. */
-.tile.selected {
-  border-color: var(--fg);
-  box-shadow: var(--shadow-raised);
-  transform: translateY(-2px);
-}
-
-.tile-wrap {
-  position: relative;
-}
-
-.tile-wrap:not(.tile-link) {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-
-.tile img {
-  display: block;
-  width: auto;
-  max-width: 100%;
-  height: auto;
-}
-
-.tile-via,
-.tile-note {
-  padding: 6px 8px;
-  border-top: 1px solid var(--rule);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.tile-via {
-  font-size: 11px;
-}
-
-.tile-note {
-  color: var(--muted);
-}
-
-.tile-via + .tile-note {
-  border-top: none;
-  padding-top: 0;
-}
-
-.tile-link {
-  padding: 16px;
-  min-height: 96px;
-}
-
-.tile-link .host {
-  font-weight: 500;
-  margin-bottom: 4px;
-}
-
-.tile-link .url {
-  color: var(--muted);
-  word-break: break-all;
-}
-
-.tile-key {
-  position: absolute;
-  top: 8px;
-  left: 8px;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  line-height: 1;
-  padding: 4px 5px;
-  background: var(--fg);
-  color: var(--bg);
-}
-
-/* Selection box: empty square, solid when selected. */
-.tile-check {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  z-index: 2;
-  width: 21px;
-  height: 21px;
-  padding: 0;
-  border-color: var(--fg);
-  display: none;
-}
-
-.tile:hover .tile-check,
-.tile.selecting .tile-check,
-.tile-check:focus-visible {
-  display: block;
-}
-
-.tile.selected .tile-check {
-  background: var(--fg);
-  box-shadow: inset 0 0 0 4px var(--bg);
-}
-
-.empty {
-  color: var(--muted);
-  padding: 96px 0;
-  font-size: 15px;
-}
-
-/* Floating status and bulk actions */
-
-.status-line,
-.bulk-bar {
-  position: fixed;
-  bottom: 24px;
-  left: calc(50% + var(--sidebar) / 2);
-  transform: translateX(-50%);
-  background: var(--bg);
-  border: 1px solid var(--fg);
-}
-
-.status-line {
-  padding: 8px 12px;
-  z-index: 40;
-}
-
-.bulk-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px;
-  max-width: calc(100vw - var(--sidebar) - 48px);
-  z-index: 45;
-}
-
-.bulk-bar > span:first-child {
-  padding: 0 8px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.bulk-bar button,
-.bulk-bar select {
-  white-space: nowrap;
-}
-
-.bulk-bar input {
-  width: 260px;
-}
-
-.drop-overlay {
-  position: fixed;
-  inset: 12px;
-  border: 2px solid var(--fg);
-  pointer-events: none;
-  z-index: 50;
-  display: none;
-}
-
-.drop-overlay.active {
-  display: block;
-}
-
-/* Ref popover */
-
-.ref-backdrop {
-  position: fixed;
-  inset: 0;
-  background: var(--backdrop);
-  z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* The frame is the image: same proportions, as large as the window allows. */
-.ref-overlay {
-  --max-w: 92vw;
-  --max-h: 88dvh;
-  position: relative;
-  width: min(var(--max-w), calc(var(--max-h) * var(--ratio)));
-  aspect-ratio: var(--ratio);
-  max-height: var(--max-h);
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.ref-image {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.ref-link {
-  display: flex;
-  align-items: center;
-  height: 100%;
-  padding: 32px;
-  font-size: 15px;
-  word-break: break-all;
-}
-
-/* On hover the details cover the whole image: a 92% veil in the page's own
-   colour, the image a ghost behind it, the fields in a column on the right.
-   It follows the theme: white and black in light, black and white in dark. */
-.ref-drawer {
-  --scrim: rgb(255 255 255 / 0.92);
-  --bg: transparent;
-  position: absolute;
-  inset: 0;
-  display: flex;
-  justify-content: flex-end;
-  background: var(--scrim);
-  color: var(--fg);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 180ms ease-out;
-}
-
-:root[data-theme="dark"] .ref-drawer {
-  --scrim: rgb(0 0 0 / 0.92);
-}
-
-.ref-drawer > .ref-panel {
-  width: min(420px, 100%);
-  padding: 24px;
-  transform: translateX(12px);
-  transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-/* Stays open while you type in it, even if the pointer wanders off. */
-.ref-overlay:hover .ref-drawer,
-.ref-drawer:focus-within {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.ref-overlay:hover .ref-drawer > .ref-panel,
-.ref-drawer:focus-within > .ref-panel {
-  transform: none;
-}
-
-@media (hover: none) {
+
+  @media (hover: none) {
+    .boards-page .cell-delete {
+      display: block;
+    }
+  }
+
+  .boards-page .drop-cell-confirm {
+    justify-content: flex-start;
+    gap: var(--space-2xs);
+  }
+
+  /* Licence line, pinned to the foot of the sidebar. */
+  .app-footer {
+    margin-top: auto;
+    padding: 0 var(--space-2xs);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: var(--text-label);
+    color: var(--muted);
+  }
+
+  .app-footer a {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .app-footer a:hover {
+    color: var(--fg);
+  }
+
+  /* Main column */
+
+  .main {
+    padding: var(--space-m) var(--space-l) var(--space-3xl);
+    min-width: 0;
+  }
+
+  /* The view's head is the system's titlebar: the title, then the controls at the far end, over an ink rule. */
+  .header-row {
+    align-items: flex-end;
+    gap: var(--space-s) var(--space-l);
+  }
+
+  /* The one large element on the page: which board this is. An h1, so it is the system's display face. */
+  .view-title {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--space-2xs);
+  }
+
+  .title-parent,
+  .title-sep {
+    color: var(--muted);
+  }
+
+  .title-parent:hover {
+    color: var(--fg);
+  }
+
+  .title-count {
+    margin-left: var(--space-3xs);
+    font-family: var(--font-text);
+    font-size: var(--text-body);
+    font-weight: 400;
+    letter-spacing: 0;
+  }
+
+  .header-controls {
+    gap: var(--space-2xs) var(--space-m);
+  }
+
+  .header-controls label {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    cursor: pointer;
+  }
+
+  .columns-switch {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .columns-switch span {
+    margin-right: var(--space-2xs);
+    color: var(--muted);
+  }
+
+  /* Joined segments share their hairlines. */
+  .columns-switch button {
+    min-width: 28px;
+    margin-left: -1px;
+  }
+
+  .columns-switch button[aria-pressed="true"] {
+    position: relative;
+  }
+
+  /* Brief and tags stay folded away until asked for; the grid comes first. The fold is the system's
+     disclosure: a drawn plus when closed, a minus when open. */
+  .board-details {
+    background: var(--dots-below);
+  }
+
+  .board-details summary {
+    padding: var(--space-2xs) 0;
+    user-select: none;
+  }
+
+  .board-details summary:hover {
+    color: var(--muted);
+  }
+
+  .board-details[open] {
+    padding-bottom: var(--space-s);
+  }
+
+  /* The brief is the board's body copy: read first, edited in place. */
+  .brief-area textarea {
+    display: block;
+    width: 100%;
+    max-width: 72ch;
+    min-height: 0;
+    resize: none;
+    overflow: hidden;
+    border: none;
+    padding: var(--space-2xs) 0 0;
+    font-size: var(--step-1);
+    line-height: 1.5;
+  }
+
+  .brief-area textarea:focus-visible {
+    outline: none;
+  }
+
+  /* Tags are a filter: the system's chips, filled while they are on. */
+  .tag-row {
+    margin-top: var(--space-s);
+  }
+
+  /* Grid */
+
+  .masonry {
+    column-gap: var(--space-s);
+    margin-top: var(--space-m);
+  }
+
+  .tile {
+    position: relative;
+    break-inside: avoid;
+    margin-bottom: var(--space-s);
+    cursor: pointer;
+    border: 1px solid var(--rule);
+    background: var(--bg);
+    transition: border-color var(--duration) var(--ease), transform 200ms ease-out;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  .tile:hover {
+    border-color: var(--muted);
+  }
+
+  /* A selected card has a 2px ink frame: its border, and an outline around it. */
+  .tile.selected {
+    border-color: var(--fg);
+    outline: 1px solid var(--fg);
+  }
+
+  .tile-wrap {
+    position: relative;
+  }
+
+  .tile-wrap:not(.tile-link) {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+  }
+
+  .tile img {
+    display: block;
+    width: auto;
+    max-width: 100%;
+    height: auto;
+  }
+
+  .tile-via,
+  .tile-note {
+    padding: 6px var(--space-2xs);
+    background: var(--dots-above);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tile-via {
+    font-size: var(--text-label);
+  }
+
+  .tile-note {
+    color: var(--muted);
+  }
+
+  .tile-via + .tile-note {
+    background: none;
+    padding-top: 0;
+  }
+
+  .tile-link {
+    padding: var(--space-s);
+    min-height: 96px;
+  }
+
+  .tile-link .host {
+    font-weight: 500;
+    margin-bottom: var(--space-3xs);
+  }
+
+  .tile-link .url {
+    color: var(--muted);
+    word-break: break-all;
+  }
+
+  .tile-key {
+    position: absolute;
+    top: var(--space-2xs);
+    left: var(--space-2xs);
+    font-size: var(--step--2);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    line-height: 1;
+    padding: 4px 5px;
+    background: var(--fg);
+    color: var(--bg);
+  }
+
+  /* Selection box: empty square, solid when selected. */
+  .tile-check {
+    position: absolute;
+    top: var(--space-2xs);
+    right: var(--space-2xs);
+    z-index: 2;
+    width: 21px;
+    height: 21px;
+    padding: 0;
+    border-color: var(--fg);
+    display: none;
+  }
+
+  .tile:hover .tile-check,
+  .tile.selecting .tile-check,
+  .tile-check:focus-visible {
+    display: block;
+  }
+
+  .tile.selected .tile-check {
+    background: var(--fg);
+    box-shadow: inset 0 0 0 4px var(--bg);
+  }
+
+  .empty {
+    padding: var(--space-3xl) 0;
+    font-size: var(--step-1);
+  }
+
+  /* Floating status and bulk actions */
+
+  .status-line,
+  .bulk-bar {
+    position: fixed;
+    bottom: var(--space-m);
+    left: calc(50% + var(--sidebar) / 2);
+    transform: translateX(-50%);
+    background: var(--bg);
+    border: 1px solid var(--fg);
+  }
+
+  .status-line {
+    padding: var(--space-2xs) var(--space-xs);
+    z-index: 40;
+  }
+
+  .bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    padding: var(--space-2xs);
+    max-width: calc(100vw - var(--sidebar) - 48px);
+    z-index: 45;
+  }
+
+  .bulk-bar > span:first-child {
+    padding: 0 var(--space-2xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .bulk-bar button,
+  .bulk-bar select {
+    white-space: nowrap;
+  }
+
+  .bulk-bar input {
+    width: 260px;
+  }
+
+  .drop-overlay {
+    position: fixed;
+    inset: 12px;
+    border: 2px solid var(--fg);
+    pointer-events: none;
+    z-index: 50;
+    display: none;
+  }
+
+  .drop-overlay.active {
+    display: block;
+  }
+
+  /* Ref popover */
+
+  .ref-backdrop {
+    position: fixed;
+    inset: 0;
+    background: var(--backdrop);
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* The frame is the image: same proportions, as large as the window allows. */
+  .ref-overlay {
+    --max-w: 92vw;
+    --max-h: 88dvh;
+    position: relative;
+    width: min(var(--max-w), calc(var(--max-h) * var(--ratio)));
+    aspect-ratio: var(--ratio);
+    max-height: var(--max-h);
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .ref-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .ref-link {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    padding: var(--space-l);
+    font-size: var(--step-1);
+    word-break: break-all;
+  }
+
+  /* On hover the details cover the whole image: a 92% veil in the page's own
+     colour, the image a ghost behind it, the fields in a column on the right.
+     It follows the theme: paper and ink in light, the dark twin's in dark. */
+  .ref-overlay {
+    --scrim: color-mix(in srgb, var(--bg) 92%, transparent);
+  }
+
+  /* Inside the veil --bg is transparent, so the fields and buttons on it have no ground of their own. */
   .ref-drawer {
+    --bg: transparent;
+    position: absolute;
+    inset: 0;
+    display: flex;
+    justify-content: flex-end;
+    background: var(--scrim);
+    color: var(--fg);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease-out;
+  }
+
+  .ref-drawer > .ref-panel {
+    width: min(420px, 100%);
+    padding: var(--space-m);
+    transform: translateX(12px);
+    transition: transform 280ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  /* Stays open while you type in it, even if the pointer wanders off. */
+  .ref-overlay:hover .ref-drawer,
+  .ref-drawer:focus-within {
     opacity: 1;
     pointer-events: auto;
   }
 
-  .ref-drawer > .ref-panel {
+  .ref-overlay:hover .ref-drawer > .ref-panel,
+  .ref-drawer:focus-within > .ref-panel {
     transform: none;
   }
-}
 
-/* Fields read as text on the veil: no boxes, one hairline underneath. */
-.ref-drawer input:not([type="checkbox"]),
-.ref-drawer textarea,
-.ref-drawer select {
-  background: transparent;
-  border: 0;
-  border-bottom: 1px solid var(--rule);
-  padding: 4px 0 6px;
-}
+  @media (hover: none) {
+    .ref-drawer {
+      opacity: 1;
+      pointer-events: auto;
+    }
 
-.ref-drawer input:not([type="checkbox"]):hover,
-.ref-drawer textarea:hover,
-.ref-drawer select:hover {
-  border-bottom-color: var(--muted);
-}
-
-.ref-drawer input:not([type="checkbox"]):focus-visible,
-.ref-drawer textarea:focus-visible,
-.ref-drawer select:focus-visible {
-  border-bottom-color: var(--fg);
-}
-
-.ref-drawer button {
-  background: transparent;
-}
-
-.ref-drawer .agent-button:hover,
-.ref-drawer button:hover {
-  background: var(--hover);
-  color: var(--fg);
-}
-
-.ref-panel .field-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-}
-
-.ref-panel .field-head a {
-  font-size: 11px;
-  color: var(--muted);
-}
-
-.ref-panel .field-head a:hover {
-  color: var(--fg);
-}
-
-.ref-panel {
-  height: 100%;
-  padding: 24px 24px 24px 0;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.ref-panel label {
-  display: block;
-  font-size: 11px;
-  letter-spacing: 0.02em;
-  color: var(--muted);
-  margin-bottom: 4px;
-}
-
-.ref-panel .label-inline {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  letter-spacing: 0;
-  color: var(--fg);
-  margin-bottom: 0;
-  cursor: pointer;
-}
-
-.ref-panel input:not([type="checkbox"]),
-.ref-panel textarea {
-  width: 100%;
-}
-
-.ref-panel textarea {
-  display: block;
-  min-height: 44px;
-  resize: vertical;
-}
-
-/* The ref's name leads the panel; it is still an editable field. */
-.ref-panel .title-input {
-  border-color: transparent;
-  border-bottom-color: var(--rule);
-  padding: 0 0 8px;
-  font-size: 20px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  text-overflow: ellipsis;
-}
-
-.ref-panel .tag-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 2px 12px;
-  margin-bottom: 4px;
-}
-
-/* Quiet actions align with the text above them, not with their own padding. */
-.ref-panel .tag-list + button.quiet {
-  margin-left: -6px;
-}
-
-.ref-panel .on-board button.quiet {
-  margin-right: -6px;
-}
-
-.ref-panel .on-board {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.ref-panel .on-board + .on-board {
-  margin-top: 2px;
-}
-
-.ref-panel .actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 16px;
-  border-top: 1px solid var(--rule);
-}
-
-.ref-panel .actions select,
-.ref-panel .actions input {
-  flex: 1;
-  min-width: 0;
-}
-
-.ref-panel .saved {
-  min-height: 1.45em;
-  font-size: 11px;
-  color: var(--muted);
-}
-
-/* Narrow windows: the sidebar stacks above the grid. */
-@media (max-width: 760px) {
-  :root {
-    --sidebar: 0px;
+    .ref-drawer > .ref-panel {
+      transform: none;
+    }
   }
 
-  .app-shell {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .app-shell > .rule-v {
-    display: none;
-  }
-
-  .sidebar {
-    position: static;
-    height: auto;
-    padding: 16px;
-    gap: 16px;
+  /* Fields read as text on the veil: no boxes, one hairline underneath. */
+  .ref-drawer input:not([type="checkbox"]),
+  .ref-drawer textarea,
+  .ref-drawer select {
+    background: transparent;
+    border: 0;
     border-bottom: 1px solid var(--rule);
+    padding: 4px 0 6px;
   }
 
-  .main {
-    padding: 16px 16px 96px;
+  .ref-drawer input:not([type="checkbox"]):hover,
+  .ref-drawer textarea:hover,
+  .ref-drawer select:hover {
+    border-bottom-color: var(--muted);
   }
 
-  .view-title {
-    font-size: 24px;
+  .ref-drawer input:not([type="checkbox"]):focus-visible,
+  .ref-drawer textarea:focus-visible,
+  .ref-drawer select:focus-visible {
+    border-bottom-color: var(--fg);
   }
 
-  .header-controls {
-    margin-left: 0;
+  .ref-drawer .agent-button {
+    background: transparent;
   }
 
-  .masonry {
-    column-count: 2 !important;
-    column-gap: 8px;
+  .ref-drawer .agent-button:hover {
+    background: var(--hover);
   }
 
-  .tile {
-    margin-bottom: 8px;
+  .ref-panel .field-head a {
+    font-size: var(--text-label);
+    color: var(--muted);
   }
 
-  .bulk-bar {
-    left: 8px;
-    right: 8px;
-    bottom: 8px;
-    transform: none;
-    max-width: none;
+  .ref-panel .field-head a:hover {
+    color: var(--fg);
+  }
+
+  .ref-panel {
+    height: 100%;
+    padding: var(--space-m) var(--space-m) var(--space-m) 0;
+    overflow-y: auto;
+  }
+
+  /* A field's name: small and muted, over its control. */
+  .ref-panel .field-name {
+    display: block;
+    font-size: var(--text-label);
+    letter-spacing: 0.02em;
+    color: var(--muted);
+    margin-bottom: var(--space-3xs);
+  }
+
+  .ref-panel .label-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2xs);
+    cursor: pointer;
+  }
+
+  .ref-panel input:not([type="checkbox"]),
+  .ref-panel textarea {
+    width: 100%;
+  }
+
+  .ref-panel textarea {
+    display: block;
+    min-height: 44px;
+    resize: vertical;
+  }
+
+  /* The ref's name leads the panel, in the display face; it is still an editable field. */
+  .ref-panel .title-input {
+    border-color: transparent;
+    border-bottom-color: var(--rule);
+    padding: 0 0 var(--space-2xs);
+    text-overflow: ellipsis;
+  }
+
+  .ref-panel .tag-list {
+    display: flex;
     flex-wrap: wrap;
+    gap: 2px 12px;
+    margin-bottom: var(--space-3xs);
   }
 
-  .ref-overlay {
-    --max-w: 100vw;
-    --max-h: 100dvh;
+  .ref-panel .on-board + .on-board {
+    margin-top: 2px;
   }
 
-}
-
-@media (prefers-reduced-motion: reduce) {
-  * {
-    transition: none !important;
-    animation: none !important;
+  .ref-panel .actions {
+    margin-top: auto;
+    padding-top: var(--space-s);
+    background: var(--dots-above);
   }
-}
 
-.agent-button {
-  min-width: 64px;
-  white-space: nowrap;
-}
-
-.ref-panel .panel-head {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-}
-
-.ref-panel .panel-head .title-input {
-  flex: 1;
-  min-width: 0;
-}
-
-/* Drag a ref onto a board: the page gives way to a grid of every board,
-   one row per top-level board, its sub-boards as columns. */
-body.ref-dragging,
-body.ref-dragging * {
-  cursor: grabbing !important;
-}
-
-/* Holding a card: it sinks a little while the hold is counting. */
-.tile.pressing {
-  transform: scale(0.97);
-  transition: transform 220ms cubic-bezier(0.32, 0, 0.67, 0);
-}
-
-.drop-grid {
-  position: fixed;
-  inset: 0;
-  z-index: 90;
-  background: var(--bg);
-  padding: 32px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-  animation: drop-grid-in 140ms ease-out;
-}
-
-@keyframes drop-grid-in {
-  from {
-    opacity: 0;
+  .ref-panel .actions select,
+  .ref-panel .actions input {
+    flex: 1;
+    min-width: 0;
   }
-}
 
-.drop-grid-heading {
-  font-size: 32px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  padding-bottom: 16px;
-  border-bottom: 1px solid var(--fg);
-}
-
-.drop-rows {
-  display: flex;
-  flex-direction: column;
-}
-
-.drop-row {
-  display: grid;
-  grid-template-columns: 240px minmax(0, 1fr);
-  gap: 12px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--rule);
-  animation: drop-row-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--row) * 24ms);
-}
-
-@keyframes drop-row-in {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
+  .ref-panel .saved {
+    min-height: 1.45em;
+    font-size: var(--text-label);
+    color: var(--muted);
   }
-}
 
-.drop-row-subs {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 12px;
-}
+  /* Narrow windows: the sidebar stacks above the grid. */
+  @media (max-width: 760px) {
+    :root {
+      --sidebar: 0px;
+    }
 
-.drop-row-empty {
-  align-self: center;
-  color: var(--muted);
-}
+    .app-shell {
+      grid-template-columns: minmax(0, 1fr);
+    }
 
-.drop-cell {
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  min-height: 88px;
-  padding: 12px 14px;
-  border: 1px solid var(--rule);
-  transition:
-    background-color 100ms ease-out,
-    color 100ms ease-out,
-    border-color 100ms ease-out,
-    transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
-}
+    .app-shell > .rule-v {
+      display: none;
+    }
 
-.drop-cell-board {
-  border-color: var(--fg);
-}
+    .app-sidebar {
+      position: static;
+      height: auto;
+      padding: var(--space-s);
+      gap: var(--space-s);
+      background: var(--dots-below);
+    }
 
-.drop-cell-board .drop-cell-name {
-  font-size: 20px;
-}
+    .main {
+      padding: var(--space-s) var(--space-s) var(--space-3xl);
+    }
 
-.drop-cell-parent {
-  color: var(--muted);
-}
+    .header-controls {
+      margin-left: 0;
+    }
 
-.drop-cell-name {
-  font-size: 16px;
-  font-weight: 600;
-  letter-spacing: -0.01em;
-  line-height: 1.15;
-}
+    .masonry {
+      column-count: 2 !important;
+      column-gap: var(--space-2xs);
+    }
 
-.drop-cell-count {
-  margin-top: 6px;
-  color: var(--muted);
-  font-variant-numeric: tabular-nums;
-}
+    .tile {
+      margin-bottom: var(--space-2xs);
+    }
 
-.drop-cell.over {
-  background: var(--fg);
-  color: var(--bg);
-  border-color: var(--fg);
-  transform: scale(1.02);
-}
+    .bulk-bar {
+      left: 8px;
+      right: 8px;
+      bottom: 8px;
+      transform: none;
+      max-width: none;
+      flex-wrap: wrap;
+    }
 
-.drop-cell.landing {
-  animation: drop-cell-land 320ms cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-@keyframes drop-cell-land {
-  40% {
-    transform: scale(1.05);
+    .ref-overlay {
+      --max-w: 100vw;
+      --max-h: 100dvh;
+    }
   }
-}
 
-.drop-cell.over .drop-cell-parent,
-.drop-cell.over .drop-cell-count {
-  color: inherit;
-}
-
-.drop-cell.current {
-  border-style: dashed;
-  border-color: var(--rule);
-  color: var(--muted);
-}
-
-.drop-grid-hint {
-  color: var(--muted);
-  margin-top: auto;
-}
-
-/* What is in the hand: one card, or a fanned stack with a count. */
-.drag-stack {
-  position: fixed;
-  top: -42px;
-  left: -56px;
-  z-index: 100;
-  pointer-events: none;
-  width: 112px;
-  will-change: transform;
-}
-
-.drag-stack img,
-.drag-stack-blank {
-  display: block;
-  width: 112px;
-  height: 84px;
-  object-fit: cover;
-  background: var(--bg);
-  border: 1px solid var(--fg);
-  box-shadow: var(--shadow-raised);
-}
-
-.drag-stack.group img {
-  position: absolute;
-  top: 0;
-  left: 0;
-  transform: translate(calc(var(--i) * 6px), calc(var(--i) * -6px)) rotate(calc(var(--i) * 3deg - 3deg));
-  animation: stack-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
-  animation-delay: calc(var(--i) * 40ms + 120ms);
-}
-
-.drag-stack.group img:first-child {
-  position: relative;
-}
-
-@keyframes stack-in {
-  from {
-    opacity: 0;
-    transform: scale(0.6);
+  .agent-button {
+    min-width: 64px;
+    white-space: nowrap;
   }
-}
 
-.drag-stack-count {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  z-index: 1;
-  min-width: 24px;
-  padding: 3px 7px;
-  background: var(--fg);
-  color: var(--bg);
-  font-weight: 600;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
+  .ref-panel .panel-head {
+    flex-wrap: nowrap;
+  }
+
+  .ref-panel .panel-head .title-input {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Drag a ref onto a board: the page gives way to a grid of every board,
+     one row per top-level board, its sub-boards as columns. */
+  body.ref-dragging,
+  body.ref-dragging * {
+    cursor: grabbing !important;
+  }
+
+  /* Holding a card: it sinks a little while the hold is counting. */
+  .tile.pressing {
+    transform: scale(0.97);
+    transition: transform 220ms cubic-bezier(0.32, 0, 0.67, 0);
+  }
+
+  .drop-grid {
+    position: fixed;
+    inset: 0;
+    z-index: 90;
+    background: var(--bg);
+    padding: var(--space-l);
+    overflow-y: auto;
+    animation: drop-grid-in 140ms ease-out;
+  }
+
+  @keyframes drop-grid-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .drop-rows {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .drop-row {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    gap: var(--space-xs);
+    padding: var(--space-xs) 0;
+    background: var(--dots-below);
+    animation: drop-row-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--row) * 24ms);
+  }
+
+  @keyframes drop-row-in {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+
+  .drop-row-subs {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-xs);
+  }
+
+  .drop-row-empty {
+    align-self: center;
+    color: var(--muted);
+  }
+
+  .drop-cell {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    min-height: 88px;
+    padding: var(--space-xs) 14px;
+    border: 1px solid var(--rule);
+    transition:
+      background-color 100ms ease-out,
+      color 100ms ease-out,
+      border-color 100ms ease-out,
+      transform 160ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .drop-cell-board {
+    border-color: var(--fg);
+  }
+
+  .drop-cell-board .drop-cell-name {
+    font-size: var(--text-title);
+  }
+
+  .drop-cell-parent {
+    color: var(--muted);
+  }
+
+  .drop-cell-name {
+    font-size: var(--step-2);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.15;
+  }
+
+  .drop-cell-count {
+    margin-top: 6px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .drop-cell.over {
+    background: var(--fg);
+    color: var(--bg);
+    border-color: var(--fg);
+    transform: scale(1.02);
+  }
+
+  .drop-cell.landing {
+    animation: drop-cell-land 320ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes drop-cell-land {
+    40% {
+      transform: scale(1.05);
+    }
+  }
+
+  .drop-cell.over .drop-cell-parent,
+  .drop-cell.over .drop-cell-count {
+    color: inherit;
+  }
+
+  .drop-cell.current {
+    border-color: var(--rule);
+    color: var(--muted);
+  }
+
+  .drop-grid-hint {
+    color: var(--muted);
+    margin-top: auto;
+  }
+
+  /* What is in the hand: one card, or a fanned stack with a count. */
+  .drag-stack {
+    position: fixed;
+    top: -42px;
+    left: -56px;
+    z-index: 100;
+    pointer-events: none;
+    width: 112px;
+    will-change: transform;
+  }
+
+  .drag-stack img,
+  .drag-stack-blank {
+    display: block;
+    width: 112px;
+    height: 84px;
+    object-fit: cover;
+    background: var(--bg);
+    border: 1px solid var(--fg);
+    box-shadow: var(--shadow);   /* the system's one shadow: for what floats over the page */
+  }
+
+  .drag-stack.group img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform: translate(calc(var(--i) * 6px), calc(var(--i) * -6px)) rotate(calc(var(--i) * 3deg - 3deg));
+    animation: stack-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+    animation-delay: calc(var(--i) * 40ms + 120ms);
+  }
+
+  .drag-stack.group img:first-child {
+    position: relative;
+  }
+
+  @keyframes stack-in {
+    from {
+      opacity: 0;
+      transform: scale(0.6);
+    }
+  }
+
+  .drag-stack-count {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    z-index: 1;
+    min-width: 24px;
+    padding: 3px 7px;
+    background: var(--fg);
+    color: var(--bg);
+    font-weight: 600;
+    text-align: center;
+    font-variant-numeric: tabular-nums;
+  }
 }

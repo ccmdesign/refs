@@ -41,23 +41,23 @@ function cancelNewBoard() {
 </script>
 
 <template>
-  <aside class="sidebar">
-    <NuxtLink to="/" class="app-name">_refs</NuxtLink>
-    <nav class="sidebar-nav">
-      <NuxtLink to="/" :class="{ selected: currentKind === 'all' }">
+  <aside class="app-sidebar stack" data-space="m">
+    <NuxtLink to="/" class="app-name display">_refs</NuxtLink>
+    <nav class="sidebar-nav" aria-label="Views">
+      <NuxtLink to="/" :aria-current="currentKind === 'all' ? 'page' : undefined">
         <span>All refs</span>
-        <span class="count">{{ allCount }}</span>
+        <span class="count tone-muted tabular">{{ allCount }}</span>
       </NuxtLink>
-      <NuxtLink to="/unsorted" :class="{ selected: currentKind === 'unsorted' }">
+      <NuxtLink to="/unsorted" :aria-current="currentKind === 'unsorted' ? 'page' : undefined">
         <span>Unsorted</span>
-        <span class="count">{{ unsortedCount }}</span>
+        <span class="count tone-muted tabular">{{ unsortedCount }}</span>
       </NuxtLink>
-      <NuxtLink to="/boards" :class="{ selected: currentKind === 'boards' }">
+      <NuxtLink to="/boards" :aria-current="currentKind === 'boards' ? 'page' : undefined">
         <span>All boards</span>
-        <span class="count">{{ countBoards(tree) }}</span>
+        <span class="count tone-muted tabular">{{ countBoards(tree) }}</span>
       </NuxtLink>
     </nav>
-    <div class="board-tree">
+    <nav class="board-tree" aria-label="Boards">
       <BoardTreeNode
         v-for="node in tree"
         :key="node.path"
@@ -70,12 +70,13 @@ function cancelNewBoard() {
         type="text"
         class="new-board"
         placeholder="New board"
+        aria-label="New board"
         @input="onNewBoardInput"
         @keydown.enter="submitNewBoard"
         @keydown.esc.stop="cancelNewBoard"
       />
       <p v-if="newBoardError" class="form-error new-board-error">{{ newBoardError }}</p>
-    </div>
+    </nav>
     <footer class="app-footer">
       <span>© 2026 ccmlabs</span>
       <span>
