@@ -382,7 +382,9 @@ async function commitTitle() {
           </div>
           <span v-if="refsData?.pending" class="tone-muted">{{ refsData.pending }} tagging</span>
           <cm-theme-toggle>
-            <button type="button" class="button" aria-pressed="false">Dark</button>
+            <button type="button" class="theme-toggle" aria-label="Dark mode" aria-pressed="false" title="Dark mode">
+              <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.25" fill="none" stroke="currentColor" stroke-width="1.2" /><path d="M8 1.75a6.25 6.25 0 0 1 0 12.5z" fill="currentColor" /></svg>
+            </button>
           </cm-theme-toggle>
         </div>
       </header>
